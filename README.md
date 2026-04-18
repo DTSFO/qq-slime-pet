@@ -45,6 +45,12 @@ cd qq-slime-pet
 npm install
 ```
 
+> **国内网络 / 企业代理导致 `unable to verify the first certificate` 报错？**
+> 仓库已内置 `.npmrc`，默认走 `npmmirror.com` 镜像下载 Electron 二进制。若仍卡住，可以：
+> - 删除 `node_modules` 后重试：`rm -rf node_modules && npm install`
+> - 或 Node 22+ 用系统证书：`set NODE_OPTIONS=--use-system-ca && npm install`
+> - 或彻底跳过校验（不推荐，仅调试）：`set NODE_TLS_REJECT_UNAUTHORIZED=0`
+
 ### 2. 运行
 
 ```bash
