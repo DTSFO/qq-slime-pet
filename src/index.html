@@ -8,21 +8,12 @@
 </head>
 <body>
   <div id="stage" class="stage">
-    <!-- 史莱姆本体由 sprite.js 注入 -->
+    <!-- 像素史莱姆：canvas 由 sprite.js 注入 -->
     <div id="pet" class="pet state-idle">
       <div class="pet-shadow"></div>
       <div class="pet-body">
-        <div class="pet-highlight"></div>
-        <div class="pet-face">
-          <div class="eye eye-l"><span class="pupil"></span></div>
-          <div class="eye eye-r"><span class="pupil"></span></div>
-          <div class="mouth"></div>
-          <div class="blush blush-l"></div>
-          <div class="blush blush-r"></div>
-        </div>
-        <div class="pet-overlay">
-          <!-- think ?、sleep Z、love ❤ 等飘字都挂在这里 -->
-        </div>
+        <!-- <canvas class="pet-canvas"> 由 Sprite 动态插入 -->
+        <div class="pet-overlay"></div>
       </div>
     </div>
 
