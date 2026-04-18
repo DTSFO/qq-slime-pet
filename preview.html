@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>水墨史莱姆 · 白底墨染预览</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      /* 宣纸底色 */
+      background:
+        radial-gradient(ellipse at 50% 30%, #fbf7ea 0%, #efe6cc 60%, #dccfae 100%);
+      color: #17171c;
+      font-family: "KaiTi", "STKaiti", "华文楷体", "Microsoft YaHei", serif;
+      overflow-y: auto;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+    h1 {
+      font-size: 26px; color: #1a1a22;
+      text-align: center;
+      letter-spacing: 8px;
+      margin-bottom: 4px;
+    }
+    .sub {
+      text-align: center;
+      color: #52525c;
+      font-size: 13px;
+      letter-spacing: 2px;
+      margin-bottom: 30px;
+    }
+    .sub::before { content: "— "; }
+    .sub::after  { content: " —"; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    .cell {
+      background: rgba(255, 252, 242, .55);
+      border: 1px solid rgba(20, 20, 25, .15);
+      padding: 14px 8px;
+      text-align: center;
+      position: relative;
+    }
+    .cell::before {
+      content: "";
+      position: absolute;
+      top: 4px; left: 4px; right: 4px; bottom: 4px;
+      border: 1px solid rgba(20, 20, 25, .08);
+      pointer-events: none;
+    }
+    .stage {
+      width: 140px; height: 140px;
+      display: inline-flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 4px;
+      position: relative;
+    }
+    .name {
+      font-size: 14px;
+      color: #1a1a22;
+      margin-top: 10px;
+      letter-spacing: 2px;
+    }
+    .sub-name {
+      font-size: 10px;
+      color: #8c8c96;
+      letter-spacing: 1px;
+      margin-top: 2px;
+      font-family: "Consolas", monospace;
+    }
+
+    /* 史莱姆容器 */
+    .pet {
+      position: relative;
+      width: 128px; height: 128px;
+      animation: breathing 2.4s ease-in-out infinite;
+      transform-origin: center bottom;
+    }
+    .pet .shadow {
+      position: absolute;
+      left: 50%; bottom: -4px;
+      transform: translateX(-50%);
+      width: 108px; height: 18px;
+      background: radial-gradient(ellipse at center,
+        rgba(30,30,35,.7),
+        rgba(40,40,50,.35) 40%,
+        rgba(60,60,70,.12) 70%,
+        transparent 85%);
+      filter: blur(4px);
+      animation: shadow-pulse 2.4s ease-in-out infinite;
+    }
+    .pet canvas {
+      width: 128px; height: 128px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      /* 水墨渗透：多层 drop-shadow */
+      filter:
+        drop-shadow(0 1px 0 rgba(30,30,35,.28))
+        drop-shadow(0 2px 3px rgba(30,30,40,.32))
+        drop-shadow(2px 4px 7px rgba(30,30,40,.28))
+        drop-shadow(-1px 3px 12px rgba(60,60,75,.18))
+        drop-shadow(1px -2px 10px rgba(80,80,100,.12));
+    }
+    @keyframes breathing {
+      0%, 100% { transform: translateY(0) scaleY(1) scaleX(1); }
+      50%      { transform: translateY(-3px) scaleY(1.04) scaleX(.98); }
+    }
+    @keyframes shadow-pulse {
+      0%, 100% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+      50%      { opacity: .55; transform: translateX(-50%) scaleX(.86); }
+    }
+
+    /* 状态叠加动画 */
+    .pet.walk   { animation: breathing 2.4s ease-in-out infinite, walk-bounce .55s ease-in-out infinite; }
+    .pet.happy  { animation: breathing 2.4s ease-in-out infinite, happy-hop .6s ease-in-out infinite; }
+    .pet.angry  { animation: breathing 2.4s ease-in-out infinite, angry-shake .15s linear infinite; }
+    .pet.drag   { animation: drag-wobble .4s ease-in-out infinite; }
+    .pet.shock  { animation: shock-shake .5s ease-in-out infinite alternate; }
+
+    @keyframes walk-bounce {
+      0%, 100% { transform: translateY(0) rotate(-2.5deg); }
+      50%      { transform: translateY(-6px) rotate(2.5deg); }
+    }
+    @keyframes happy-hop {
+      0%, 100% { transform: translateY(0) scaleY(1); }
+      30%      { transform: translateY(-10px) scaleY(1.08); }
+      60%      { transform: translateY(0) scaleY(.92); }
+    }
+    @keyframes angry-shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px) translateY(-1px); }
+      50% { transform: translateX(2px) translateY(1px); }
+      75% { transform: translateX(-1px); }
+    }
+    @keyframes drag-wobble {
+      0%, 100% { transform: translateY(0) skewX(0deg) scaleY(1); }
+      50%      { transform: translateY(-4px) skewX(8deg) scaleY(.92); }
+    }
+    @keyframes shock-shake {
+      0%   { transform: translateX(-3px) scale(1.04); }
+      100% { transform: translateX(3px)  scale(1.04); }
+    }
+
+    .footer {
+      margin-top: 36px;
+      padding: 18px 22px;
+      background: rgba(255, 252, 240, .75);
+      border: 1px solid rgba(20,20,25,.15);
+      font-size: 13px;
+      color: #2d2d36;
+      line-height: 1.8;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+    .footer code {
+      background: rgba(156, 46, 36, .1);
+      color: #9c2e24;
+      padding: 1px 8px;
+      font-family: "Consolas", monospace;
+      letter-spacing: 0;
+    }
+    .seal {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 2px 10px;
+      background: #9c2e24;
+      color: #faf5e6;
+      font-family: "KaiTi", serif;
+      letter-spacing: 3px;
+      transform: rotate(-3deg);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>白墨糖</h1>
+    <div class="sub">宣纸白主体 + 墨色晕染 · 所有状态</div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="footer">
+      满意就 <code>npm start</code> 跑起来 · 不满意直接说："墨晕再重点 / 再淡点 / 加多个墨点 / 眼睛换个形状"
+      <span class="seal">白墨糖</span>
+    </div>
+  </div>
+
+  <script>
+    const INK = {
+      '.': null,
+      '#': '#1a1a22',
+      'W': '#faf5e6',
+      'M': '#b5b0a4',
+      'L': '#6a6864',
+      'K': '#0a0a0a',
+      'R': '#9c2e24',
+      'B': '#faf5e6',
+    };
+
+    const BODY = [
+      "................","................",
+      ".....######.....","....#WWWWWW#....",
+      "...#WWWWWWWW#...","..#WWWWWWWWWW#..",
+      "..#WWWWWWWWWW#..",".#WWWWWWWWWWWW#.",
+      ".#WWWWWWWWWWWW#.",".#WWWWWWWWWWWW#.",
+      ".#WWWWWWWWWWWW#.","#WWWWWWWWWWWWWW#",
+      "#WMWWWWWWWWWWMW#","#MLWWWWWWWWWWLM#",
+      "################","................",
+    ];
+
+    const FACES = {
+      idle: {
+        eyes: [{x:3,y:8,g:["LL","LL"]},{x:11,y:8,g:["LL","LL"]}],
+        mouth: null
+      },
+      walk: null,
+      sleepy: {
+        eyes: [{x:3,y:8,g:["MM","LL"]},{x:11,y:8,g:["MM","LL"]}],
+        mouth: null
+      },
+      sleep: {
+        eyes: [{x:3,y:8,g:["LLL"]},{x:10,y:8,g:["LLL"]}],
+        mouth: null
+      },
+      shock: {
+        eyes: [{x:3,y:7,g:["LLL","LWL","LLL"]},{x:10,y:7,g:["LLL","LWL","LLL"]}],
+        mouth: {x:7,y:10,g:["LL","LL"]}
+      },
+      happy: {
+        eyes: [{x:3,y:8,g:[".L.","LLL"]},{x:10,y:8,g:[".L.","LLL"]}],
+        mouth: {x:5,y:11,g:["L....L","LLLLLL"]}
+      },
+      think: {
+        eyes: [{x:3,y:7,g:["LL","WW"]},{x:11,y:7,g:["LL","WW"]}],
+        mouth: null
+      },
+      angry: {
+        eyes: [{x:3,y:7,g:["L..","WL.","WWL"]},{x:10,y:7,g:["..L",".LW","LWW"]}],
+        mouth: {x:6,y:11,g:["LLLL"]}
+      },
+      love: {
+        eyes: [{x:3,y:8,g:["RR","RR"]},{x:11,y:8,g:["RR","RR"]}],
+        mouth: {x:7,y:11,g:[".L.","LLL"]}
+      },
+      drag: {
+        eyes: [{x:3,y:7,g:["LLL","LWL","LLL"]},{x:10,y:7,g:["LLL","LWL","LLL"]}],
+        mouth: {x:6,y:11,g:["LLLL"]}
+      },
+    };
+
+    function paint(ctx, grid, ox=0, oy=0) {
+      for (let y=0; y<grid.length; y++) {
+        for (let x=0; x<grid[y].length; x++) {
+          const c = INK[grid[y][x]];
+          if (c) { ctx.fillStyle = c; ctx.fillRect(ox+x, oy+y, 1, 1); }
+        }
+      }
+    }
+    function render(ctx, faceKey) {
+      ctx.clearRect(0,0,16,16);
+      paint(ctx, BODY);
+      const face = FACES[faceKey] || FACES.idle;
+      if (!face) return;
+      for (const e of (face.eyes || [])) paint(ctx, e.g, e.x, e.y);
+      if (face.mouth) paint(ctx, face.mouth.g, face.mouth.x, face.mouth.y);
+    }
+
+    const ORDER = [
+      ['idle',   '平常', 'IDLE'],
+      ['walk',   '散步', 'WALK'],
+      ['happy',  '开心', 'HAPPY'],
+      ['shock',  '惊讶', 'SHOCK'],
+      ['think',  '思考', 'THINK'],
+      ['angry',  '生气', 'ANGRY'],
+      ['love',   '喜欢', 'LOVE'],
+      ['sleepy', '犯困', 'SLEEPY'],
+      ['sleep',  '睡着', 'SLEEP'],
+      ['drag',   '拎起', 'DRAG'],
+    ];
+
+    const grid = document.getElementById('grid');
+    for (const [key, cn, en] of ORDER) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.innerHTML = `
+        <div class="stage">
+          <div class="pet ${key}">
+            <div class="shadow"></div>
+            <canvas width="16" height="16"></canvas>
+          </div>
+        </div>
+        <div class="name">${cn}</div>
+        <div class="sub-name">${en}</div>
+      `;
+      grid.appendChild(cell);
+      const ctx = cell.querySelector('canvas').getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      render(ctx, key === 'walk' ? 'idle' : key);
+    }
+  </script>
+</body>
+</html>

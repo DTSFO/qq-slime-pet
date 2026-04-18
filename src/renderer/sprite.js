@@ -1,117 +1,110 @@
 // sprite.js —— 水墨风 16×16 NES 像素史莱姆 Canvas 渲染器
 // 身体 + 脸通过 Canvas 绘制；overlay 飘字 ?/Z/❤ 仍由 DOM 处理
 (function () {
-  /* ----- 水墨五色 + 点缀 ----- */
+  /* ----- 水墨 · 白底墨染调色板 ----- */
   const INK = {
     '.': null,
-    '#': '#17171c',  // 焦墨（硬边描边）
-    'B': '#2d2d36',  // 浓墨（主体）
-    'L': '#52525c',  // 重墨（次暗）
-    'M': '#8c8c96',  // 淡墨（中亮）
-    'W': '#e8e0cc',  // 宣纸白（最亮反光）
-    'K': '#050507',  // 眼珠纯黑
+    '#': '#1a1a22',  // 焦墨描边
+    'W': '#faf5e6',  // 宣纸白（主体，占 90%）
+    'M': '#b5b0a4',  // 淡墨（晕染）
+    'L': '#6a6864',  // 中墨（眼睛/嘴/墨痕）
+    'K': '#0a0a0a',  // 纯黑（极少用）
     'R': '#9c2e24',  // 朱砂（点缀）
+    'B': '#faf5e6',  // 兼容别名 —— 等价于 W
   };
 
-  /* ----- 基础身体（16×16） ----- */
-  // 每行恰好 16 字符。眼睛和嘴巴位置用 B 占位，由 FACE patch 覆盖
+  /* ----- 基础身体（16×16 · 白主体 + 底部墨渗） ----- */
   const BODY = [
     "................",
     "................",
     ".....######.....",
-    "....#LMMMML#....",
-    "...#LBBBBBBL#...",
-    "..#BBBBBBBBBB#..",
-    "..#BBBBBBBBBB#..",
-    ".#BBBBBBBBBBBB#.",
-    ".#BBBBBBBBBBBB#.",
-    ".#BBBBBBBBBBBB#.",
-    ".#BBBBBBBBBBBB#.",
-    "#BBBBBBBBBBBBBB#",
-    "#BBBBBBBBBBBBBB#",
-    "#BBBBBBBBBBBBBB#",
+    "....#WWWWWW#....",
+    "...#WWWWWWWW#...",
+    "..#WWWWWWWWWW#..",
+    "..#WWWWWWWWWW#..",
+    ".#WWWWWWWWWWWW#.",
+    ".#WWWWWWWWWWWW#.",
+    ".#WWWWWWWWWWWW#.",
+    ".#WWWWWWWWWWWW#.",
+    "#WWWWWWWWWWWWWW#",
+    "#WMWWWWWWWWWWMW#",
+    "#MLWWWWWWWWWWLM#",
     "################",
     "................",
   ];
 
   /**
-   * 脸部 patch 定义
-   * 每个状态 { eyes: [{x,y,grid[]}, ...], mouth: {x,y,grid[]} | null, shake?: boolean }
-   * 空格/. 表示不覆盖该位置，其他字符覆盖原像素
+   * 脸部 patch —— 眼睛/嘴巴用中墨 L，符合水墨风
    */
   const FACES = {
     idle: {
-      eyes: [
-        { x: 3,  y: 8, grid: ["KK","KK"] },
-        { x: 11, y: 8, grid: ["KK","KK"] },
-      ],
-      mouth: null,
-    },
-    sleepy: {
-      // 眼神无光：K 换淡墨 L，整体感觉困
       eyes: [
         { x: 3,  y: 8, grid: ["LL","LL"] },
         { x: 11, y: 8, grid: ["LL","LL"] },
       ],
       mouth: null,
     },
-    sleep: {
-      // 闭眼 —— 只剩一条横线
+    sleepy: {
+      // 半闭：上半眼是 M 淡墨，下半还是 L
       eyes: [
-        { x: 3,  y: 8, grid: ["KKK"] },
-        { x: 10, y: 8, grid: ["KKK"] },
+        { x: 3,  y: 8, grid: ["MM","LL"] },
+        { x: 11, y: 8, grid: ["MM","LL"] },
+      ],
+      mouth: null,
+    },
+    sleep: {
+      // 闭眼横线，用中墨 L
+      eyes: [
+        { x: 3,  y: 8, grid: ["LLL"] },
+        { x: 10, y: 8, grid: ["LLL"] },
       ],
       mouth: null,
     },
     shock: {
-      // 大瞪眼 3×3 + O 形嘴
+      // 大瞪眼 3×3（外 L + 内 W 反白）
       eyes: [
-        { x: 3,  y: 7, grid: ["KKK","KKK","KKK"] },
-        { x: 10, y: 7, grid: ["KKK","KKK","KKK"] },
+        { x: 3,  y: 7, grid: ["LLL","LWL","LLL"] },
+        { x: 10, y: 7, grid: ["LLL","LWL","LLL"] },
       ],
-      mouth: { x: 7, y: 10, grid: ["KK","KK"] },
+      mouth: { x: 7, y: 10, grid: ["LL","LL"] },
     },
     happy: {
-      // 弯眯眼 (^_^) + 微笑
-      // 上排是单点，下排是 3 点弧 => 视觉上像眯起笑的眼睛
+      // 弯眯眼 + 微笑嘴
       eyes: [
-        { x: 3,  y: 8, grid: [".K.","KKK"] },
-        { x: 10, y: 8, grid: [".K.","KKK"] },
+        { x: 3,  y: 8, grid: [".L.","LLL"] },
+        { x: 10, y: 8, grid: [".L.","LLL"] },
       ],
-      mouth: { x: 5, y: 11, grid: ["K....K","KKKKKK"] },
+      mouth: { x: 5, y: 11, grid: ["L....L","LLLLLL"] },
     },
     think: {
-      // 眼睛偏上（像在看头顶的问号）
       eyes: [
-        { x: 3,  y: 7, grid: ["KK","BB"] },
-        { x: 11, y: 7, grid: ["KK","BB"] },
+        { x: 3,  y: 7, grid: ["LL","WW"] },
+        { x: 11, y: 7, grid: ["LL","WW"] },
       ],
       mouth: null,
     },
     angry: {
-      // 斜眉 + 扁嘴
-      // 眉在 row 7 斜向（左眉: \, 右眉: /）
+      // 斜眉（左 \ 右 /）+ 扁嘴
       eyes: [
-        { x: 3,  y: 7, grid: ["K..","BK.","BBK"] },   // 左斜眉 + 眼
-        { x: 10, y: 7, grid: ["..K",".KB","KBB"] },   // 右斜眉 + 眼
+        { x: 3,  y: 7, grid: ["L..","WL.","WWL"] },
+        { x: 10, y: 7, grid: ["..L",".LW","LWW"] },
       ],
-      mouth: { x: 6, y: 11, grid: ["KKKK"] },
+      mouth: { x: 6, y: 11, grid: ["LLLL"] },
     },
     love: {
-      // 朱砂心形眼
+      // 朱砂方块眼 + 小嘴
       eyes: [
         { x: 3,  y: 8, grid: ["RR","RR"] },
         { x: 11, y: 8, grid: ["RR","RR"] },
       ],
-      mouth: { x: 7, y: 11, grid: [".K.","KKK"] },
+      mouth: { x: 7, y: 11, grid: [".L.","LLL"] },
     },
     drag: {
-      // 惊慌 —— 接近 shock 但嘴巴扁
       eyes: [
-        { x: 3,  y: 7, grid: ["KKK","KWK","KKK"] },
-        { x: 10, y: 7, grid: ["KKK","KWK","KKK"] },
+        { x: 3,  y: 7, grid: ["LLL","LWL","LLL"] },
+        { x: 10, y: 7, grid: ["LLL","LWL","LLL"] },
       ],
-      mouth: { x: 6, y: 11, grid: ["KKKK"] },
+      mouth: { x: 6, y: 11, grid: ["LLLL"] },
     },
     walk: null, // 与 idle 一致
   };
@@ -204,10 +197,10 @@
         spawn();
         this._overlayTimer = setInterval(spawn, 1100);
       };
-      if (state === 'think')  spawnOf('?',  '#e8e0cc');
-      else if (state === 'sleep' || state === 'sleepy') spawnOf('Z', '#8c8c96');
+      if (state === 'think')  spawnOf('?',  '#6a6864');
+      else if (state === 'sleep' || state === 'sleepy') spawnOf('Z', '#6a6864');
       else if (state === 'love')  spawnOf('♥',  '#9c2e24');
-      else if (state === 'happy') spawnOf('♪',  '#e8e0cc');
+      else if (state === 'happy') spawnOf('♪',  '#6a6864');
       else if (state === 'angry') spawnOf('怒', '#9c2e24');
     }
 
