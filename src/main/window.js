@@ -25,21 +25,25 @@ function createPetWindow() {
 
   const cfg = getConfig();
   const size = cfg.pet?.size || 220;
+  // 窗口高度给气泡留空间（桌宠本体贴底，上方 60% 高度放气泡）
+  const winW = size;
+  const winH = Math.round(size * 1.65);
+
   const saved = cfg.pet?.position || {};
   const primary = screen.getPrimaryDisplay().workArea;
-  const defaultX = primary.x + primary.width - size - 40;
-  const defaultY = primary.y + primary.height - size - 80;
+  const defaultX = primary.x + primary.width - winW - 40;
+  const defaultY = primary.y + primary.height - winH - 80;
 
   const pos = clampToDisplay(
     saved.x == null ? defaultX : saved.x,
     saved.y == null ? defaultY : saved.y,
-    size,
-    size
+    winW,
+    winH
   );
 
   petWindow = new BrowserWindow({
-    width: size,
-    height: size,
+    width: winW,
+    height: winH,
     x: pos.x,
     y: pos.y,
     transparent: true,
@@ -55,7 +59,8 @@ function createPetWindow() {
       preload: path.join(__dirname, '..', '..', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // 允许 preload 使用 require
+      sandbox: false,
+      backgroundThrottling: false,
     },
   });
 
@@ -63,7 +68,13 @@ function createPetWindow() {
     petWindow.setAlwaysOnTop(true, 'screen-saver');
   }
 
-  // 默认穿透，渲染进程检测到指针落在史莱姆身上时再关闭
+  // 关键：setContentProtection(true) —— 让桌宠在屏幕上可见，但对所有截图工具
+  // (desktopCapturer / PrintScreen / Snipaste / OBS …) 不可见。
+  // 这样 AI 定时截屏不会拍到桌宠本体，也不需要 hide/show 导致闪烁消失
+  if (cfg.capture?.excludeSelf !== false) {
+    petWindow.setContentProtection(true);
+  }
+
   petWindow.setIgnoreMouseEvents(true, { forward: true });
 
   petWindow.loadFile(path.join(__dirname, '..', 'index.html'));

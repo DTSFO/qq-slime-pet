@@ -92,12 +92,18 @@
       font-size: 13px;
       font-family: inherit;
       outline: none;
-      /* 只过渡必要属性 */
-      transition: border-color .12s ease-out;
+      /* 不加 transition —— focus 切换立即响应 */
     }
     input:focus, select:focus, textarea:focus {
       border-color: #3cc895;
     }
+    /* 隐藏 number spinner（Chromium 上有微妙 repaint） */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] { -moz-appearance: textfield; }
     textarea {
       resize: vertical;
       min-height: 110px;
@@ -119,8 +125,9 @@
     .hint-ok  { color: #7eefc4; }
     .hint-err { color: #ff9a9a; }
 
-    /* ---- 模型选择器 ---- */
+    /* ---- 模型选择器 + 自制下拉 ---- */
     .model-picker {
+      position: relative;
       display: flex;
       gap: 6px;
       align-items: stretch;
@@ -138,7 +145,6 @@
       align-items: center;
       justify-content: center;
       padding: 0;
-      transition: background-color .12s ease-out;
     }
     .icon-btn:hover { background: #3a3d4b; }
     .icon-btn:active { background: #2a2d38; }
@@ -153,6 +159,47 @@
     @keyframes spin {
       from { transform: rotate(0); }
       to   { transform: rotate(360deg); }
+    }
+    .model-dropdown {
+      position: absolute;
+      top: calc(100% + 3px);
+      left: 0;
+      right: 44px;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #191a22;
+      border: 1px solid #3cc895;
+      border-radius: 5px;
+      z-index: 20;
+      box-shadow: 0 8px 24px rgba(0,0,0,.55);
+    }
+    .model-dropdown.hidden { display: none; }
+    .model-dropdown::-webkit-scrollbar { width: 6px; }
+    .model-dropdown::-webkit-scrollbar-thumb {
+      background: #32343f; border-radius: 3px;
+    }
+    .model-option {
+      padding: 6px 12px;
+      cursor: pointer;
+      color: #c5c9e0;
+      font-family: "Consolas", "Microsoft YaHei", monospace;
+      font-size: 12px;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .model-option:hover,
+    .model-option.active {
+      background: #2a2d38;
+      color: #7eefc4;
+    }
+    .model-option .match { color: #ffd88a; }
+    .model-dropdown-empty {
+      padding: 10px 12px;
+      color: #6b6d7e;
+      font-size: 11px;
+      font-style: italic;
     }
 
     /* ---- 按钮 ---- */
@@ -172,7 +219,6 @@
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: background-color .12s ease-out;
     }
     button.btn:hover { background: #55e5a9; }
     button.btn:active { background: #2fb47f; }
@@ -242,12 +288,12 @@
       <div class="field">
         <label for="ai-model">模型</label>
         <div class="model-picker">
-          <input list="models-list" id="ai-model" placeholder="例：claude-sonnet-4-6（从下拉选或手动输入）" autocomplete="off" spellcheck="false" />
+          <input type="text" id="ai-model" placeholder="例：claude-sonnet-4-6（点输入框看全部 / 输入过滤 / 手动输入均可）" autocomplete="off" spellcheck="false" />
           <button type="button" class="icon-btn" id="btn-fetch-models" title="根据 Endpoint + API Key 拉取模型列表">
             <span class="spin">↻</span>
           </button>
+          <div class="model-dropdown hidden" id="model-dropdown"></div>
         </div>
-        <datalist id="models-list"></datalist>
         <div class="hint" id="models-hint">填好上方 Endpoint 和 API Key 后，点 ↻ 拉取可选模型</div>
       </div>
 

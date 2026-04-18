@@ -1,11 +1,7 @@
-// 屏幕截图：主进程负责，截屏前隐藏桌宠避免"自拍循环"
-const { desktopCapturer, screen, nativeImage } = require('electron');
+// 屏幕截图：依靠 setContentProtection(true) 让截图拍不到桌宠，不再 hide/show
+const { desktopCapturer, screen } = require('electron');
 const { getConfig } = require('../config/store');
 const { getPetWindow } = require('./window');
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 async function captureScreen({ excludeSelf = true } = {}) {
   const cfg = getConfig();
@@ -19,47 +15,35 @@ async function captureScreen({ excludeSelf = true } = {}) {
     ),
   };
 
+  // 动态调整捕获可见性：用户永远看到桌宠，但截图中根据 excludeSelf 决定
   const petWin = getPetWindow();
-  const hidden = excludeSelf && petWin && petWin.isVisible();
-  if (hidden) {
-    petWin.hide();
-    // 给桌面合成器留一点时间把桌宠从画面里抹掉
-    await sleep(120);
+  if (petWin && !petWin.isDestroyed()) {
+    try { petWin.setContentProtection(!!excludeSelf); } catch (_) {}
   }
 
-  let result;
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: target.width * scale, height: target.height * scale },
-    });
-    if (!sources || !sources.length) {
-      throw new Error('没有可用屏幕源');
-    }
-    // 取主屏：display_id 与 primary.id 匹配
-    const main = sources.find(
-      (s) => String(s.display_id) === String(primary.id)
-    ) || sources[0];
-
-    let img = main.thumbnail;
-    if (img.getSize().width > maxWidth) {
-      img = img.resize({ width: maxWidth, quality: 'good' });
-    }
-    const png = img.toPNG();
-    result = {
-      base64: png.toString('base64'),
-      width: img.getSize().width,
-      height: img.getSize().height,
-      bytes: png.length,
-      ts: Date.now(),
-    };
-  } finally {
-    if (hidden && petWin && !petWin.isDestroyed()) {
-      petWin.show();
-    }
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: target.width * scale, height: target.height * scale },
+  });
+  if (!sources || !sources.length) {
+    throw new Error('没有可用屏幕源');
   }
+  const main = sources.find(
+    (s) => String(s.display_id) === String(primary.id)
+  ) || sources[0];
 
-  return result;
+  let img = main.thumbnail;
+  if (img.getSize().width > maxWidth) {
+    img = img.resize({ width: maxWidth, quality: 'good' });
+  }
+  const png = img.toPNG();
+  return {
+    base64: png.toString('base64'),
+    width: img.getSize().width,
+    height: img.getSize().height,
+    bytes: png.length,
+    ts: Date.now(),
+  };
 }
 
 module.exports = { captureScreen };

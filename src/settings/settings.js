@@ -1,10 +1,12 @@
-// 设置窗口渲染逻辑：加载配置 → 填表单 → 保存 + 模型列表拉取
+// 设置窗口渲染逻辑：加载配置 → 填表单 → 保存 + 模型列表拉取（自制下拉）
 (function () {
   const $ = (id) => document.getElementById(id);
   const status = $('status');
 
   const ANTHROPIC_DEFAULT = 'https://api.anthropic.com';
   const OPENAI_DEFAULT = 'https://api.openai.com';
+
+  let modelList = []; // 最近一次拉到的模型 id 数组
 
   function setStatus(msg, type = 'info') {
     status.className = 'status ' + type;
@@ -19,7 +21,6 @@
 
   async function load() {
     const cfg = await window.pet.getConfig();
-    // AI
     $('ai-enabled').checked = !!cfg.ai?.enabled;
     $('ai-protocol').value = cfg.ai?.protocol || 'messages';
     $('ai-endpoint').value = cfg.ai?.endpoint || '';
@@ -29,12 +30,10 @@
     $('ai-temp').value = cfg.ai?.temperature ?? 0.8;
     $('ai-maxtok').value = cfg.ai?.maxTokens ?? 512;
     $('ai-prompt').value = cfg.ai?.systemPrompt || '';
-    // capture
     $('cap-auto').checked = cfg.capture?.autoCapture !== false;
     $('cap-interval').value = cfg.capture?.intervalSec ?? 60;
     $('cap-maxw').value = cfg.capture?.maxWidth ?? 1280;
     $('cap-excludeself').checked = cfg.capture?.excludeSelf !== false;
-    // pet
     $('pet-name').value = cfg.pet?.petName || 'QQ糖';
     $('pet-size').value = cfg.pet?.size ?? 220;
     $('pet-bubble').value = cfg.pet?.bubbleDuration ?? 4;
@@ -66,9 +65,7 @@
       },
     };
     const keyInput = $('ai-key').value;
-    if (includeEmptyKey || keyInput) {
-      payload.ai.apiKey = keyInput;
-    }
+    if (includeEmptyKey || keyInput) payload.ai.apiKey = keyInput;
     return payload;
   }
 
@@ -96,21 +93,80 @@
       const override = { ...payload.ai };
       if (!override.apiKey) delete override.apiKey;
       const r = await window.pet.testConnection(override);
-      if (r.ok) {
-        setStatus(`连接成功 ✓ 回复: ${r.text || '(空)'}`, 'ok');
-      } else {
-        setStatus(`连接失败: ${r.error}`, 'err');
-      }
+      if (r.ok) setStatus(`连接成功 ✓ 回复: ${r.text || '(空)'}`, 'ok');
+      else setStatus(`连接失败: ${r.error}`, 'err');
     } catch (err) {
       setStatus('测试失败: ' + err.message, 'err');
     }
   });
 
-  $('btn-cancel').addEventListener('click', () => {
-    window.pet.closeSettings();
+  $('btn-cancel').addEventListener('click', () => window.pet.closeSettings());
+
+  /* ======================================================
+     自制下拉框：点输入框显示全部，输入过滤，点击选中
+     ====================================================== */
+  const modelInput = $('ai-model');
+  const dropdown = $('model-dropdown');
+
+  function renderDropdown(filter) {
+    const f = (filter || '').toLowerCase().trim();
+    const items = f
+      ? modelList.filter((m) => m.toLowerCase().includes(f))
+      : modelList.slice();
+
+    if (modelList.length === 0) {
+      dropdown.innerHTML = '<div class="model-dropdown-empty">未获取模型列表，请先点 ↻ 刷新</div>';
+      return;
+    }
+    if (items.length === 0) {
+      dropdown.innerHTML = '<div class="model-dropdown-empty">无匹配项，可直接输入自定义模型名</div>';
+      return;
+    }
+    // 限制渲染条目数，避免 DOM 过多（展示前 80 条，模糊匹配时大多少于 80）
+    const show = items.slice(0, 80);
+    dropdown.innerHTML = show.map((id) => {
+      const safe = id.replace(/</g, '&lt;');
+      if (!f) return `<div class="model-option" data-value="${safe}">${safe}</div>`;
+      const idx = id.toLowerCase().indexOf(f);
+      if (idx < 0) return `<div class="model-option" data-value="${safe}">${safe}</div>`;
+      const before = safe.slice(0, idx);
+      const hit = safe.slice(idx, idx + f.length);
+      const after = safe.slice(idx + f.length);
+      return `<div class="model-option" data-value="${safe}">${before}<span class="match">${hit}</span>${after}</div>`;
+    }).join('');
+  }
+
+  function openDropdown() {
+    renderDropdown(modelInput.value);
+    dropdown.classList.remove('hidden');
+  }
+  function closeDropdown() {
+    dropdown.classList.add('hidden');
+  }
+
+  modelInput.addEventListener('focus', openDropdown);
+  modelInput.addEventListener('input', () => renderDropdown(modelInput.value));
+  modelInput.addEventListener('blur', () => {
+    // 延迟关闭，让 mousedown 先生效
+    setTimeout(closeDropdown, 150);
+  });
+  modelInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeDropdown(); modelInput.blur(); }
+  });
+  dropdown.addEventListener('mousedown', (e) => {
+    const opt = e.target.closest('.model-option');
+    if (!opt) return;
+    e.preventDefault(); // 阻止 input blur
+    modelInput.value = opt.getAttribute('data-value');
+    closeDropdown();
+    modelInput.dispatchEvent(new Event('change'));
+  });
+  // 点击外部关闭
+  document.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('.model-picker')) closeDropdown();
   });
 
-  /* ---------- 模型列表拉取 ---------- */
+  /* ---------- 拉取模型列表 ---------- */
   $('btn-fetch-models').addEventListener('click', async () => {
     const btn = $('btn-fetch-models');
     const hint = $('models-hint');
@@ -123,20 +179,17 @@
       if (!override.apiKey) delete override.apiKey;
       const r = await window.pet.listModels(override);
       if (r.ok) {
-        const datalist = $('models-list');
-        datalist.innerHTML = '';
-        for (const id of r.models) {
-          const opt = document.createElement('option');
-          opt.value = id;
-          datalist.appendChild(opt);
-        }
-        if (r.models.length === 0) {
-          setHint(hint, '接口返回空列表，建议手动输入', 'err');
+        modelList = r.models || [];
+        if (modelList.length === 0) {
+          setHint(hint, '接口返回空列表，建议手动输入模型名', 'err');
         } else {
-          setHint(hint, `已获取 ${r.models.length} 个模型 · 点击输入框展开下拉`, 'ok');
-          // 如果当前模型不在列表中，不自动覆盖；若为空则填第一个
-          const cur = $('ai-model').value.trim();
-          if (!cur) $('ai-model').value = r.models[0];
+          setHint(hint, `已获取 ${modelList.length} 个模型 · 点击输入框展开列表，输入可过滤`, 'ok');
+          // 立即展开让用户看到列表
+          renderDropdown('');
+          dropdown.classList.remove('hidden');
+          modelInput.focus();
+          // 若当前值空，填入第一个
+          if (!modelInput.value.trim()) modelInput.value = modelList[0];
         }
       } else {
         setHint(hint, `失败: ${r.error}（可手动输入模型名）`, 'err');
@@ -148,7 +201,7 @@
     }
   });
 
-  // 协议切换：自动替换默认 endpoint
+  // 协议切换：自动替换默认 endpoint + 清空模型列表
   $('ai-protocol').addEventListener('change', (e) => {
     const cur = $('ai-endpoint').value.trim();
     if (e.target.value === 'messages' && (cur === OPENAI_DEFAULT || cur === '')) {
@@ -157,8 +210,7 @@
                (cur === ANTHROPIC_DEFAULT || cur === '')) {
       $('ai-endpoint').value = OPENAI_DEFAULT;
     }
-    // 清空 datalist（因为换协议了，老列表无意义）
-    $('models-list').innerHTML = '';
+    modelList = [];
     setHint($('models-hint'), '协议已切换，请重新点 ↻ 拉取模型列表', '');
   });
 

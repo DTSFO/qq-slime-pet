@@ -68,7 +68,7 @@ html, body {
   pointer-events: none;
 }
 
-/* 像素 canvas：多层墨色 drop-shadow 浓晕 —— 从贴边到远扩散 */
+/* 像素 canvas：精简为 3 层 drop-shadow（6 层太吃 GPU 导致整机卡顿） */
 .pet-canvas {
   width: 128px;
   height: 128px;
@@ -76,12 +76,9 @@ html, body {
   image-rendering: crisp-edges;
   pointer-events: auto;
   filter:
-    drop-shadow(0 1px 0 rgba(15, 15, 25, .55))
-    drop-shadow(0 3px 4px rgba(15, 15, 25, .62))
-    drop-shadow(2px 5px 9px rgba(20, 20, 30, .55))
-    drop-shadow(-1px 4px 14px rgba(40, 40, 60, .42))
-    drop-shadow(0 2px 22px rgba(60, 60, 90, .28))
-    drop-shadow(1px -1px 8px rgba(80, 80, 100, .18));
+    drop-shadow(0 2px 2px rgba(15, 15, 25, .65))
+    drop-shadow(1px 4px 10px rgba(30, 30, 45, .5))
+    drop-shadow(-1px 3px 18px rgba(60, 60, 90, .3));
 }
 
 /* ---------- 状态整体动画 ----------
@@ -175,31 +172,33 @@ html, body {
 }
 
 /* ====================================================
-   对话气泡 —— 宣纸风
+   对话气泡 —— 宣纸风（加宽给长文字留地方）
    ==================================================== */
 .bubble {
   position: absolute;
   left: 50%;
   bottom: 158px;
   transform: translateX(-50%);
-  max-width: 210px;
-  min-width: 60px;
+  max-width: 280px;
+  min-width: 70px;
+  width: max-content;
   padding: 10px 14px;
-  background: #f4ecd8;        /* 宣纸色 */
-  color: #17171c;             /* 焦墨 */
+  background: #f4ecd8;
+  color: #17171c;
   border: 2px solid #17171c;
-  border-radius: 3px;          /* 硬挺矩形，不用圆角 */
+  border-radius: 3px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   letter-spacing: .5px;
   box-shadow:
     3px 3px 0 rgba(20,20,25,.25),
     inset 0 0 0 1px rgba(156, 46, 36, .08);
   word-wrap: break-word;
+  overflow-wrap: break-word;
   z-index: 5;
   pointer-events: none;
   opacity: 0;
-  transition: opacity .25s, transform .25s;
+  transition: opacity .2s, transform .2s;
   font-family: "KaiTi", "STKaiti", "华文楷体", "Microsoft YaHei", serif;
 }
 .bubble:not(.hidden) {
