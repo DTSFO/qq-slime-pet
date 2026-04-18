@@ -24,6 +24,23 @@ contextBridge.exposeInMainWorld('pet', {
     return () => ipcRenderer.removeListener('ai:tick-event', listener);
   },
 
+  // 监听边缘/探头/移动状态变化
+  onEdgeChanged: (handler) => {
+    const listener = (_ev, edge) => handler(edge);
+    ipcRenderer.on('pet:edge-changed', listener);
+    return () => ipcRenderer.removeListener('pet:edge-changed', listener);
+  },
+  onPeekChanged: (handler) => {
+    const listener = (_ev, side) => handler(side);
+    ipcRenderer.on('pet:peek-changed', listener);
+    return () => ipcRenderer.removeListener('pet:peek-changed', listener);
+  },
+  onMoving: (handler) => {
+    const listener = (_ev, data) => handler(data);
+    ipcRenderer.on('pet:moving', listener);
+    return () => ipcRenderer.removeListener('pet:moving', listener);
+  },
+
   // 配置读写（脱敏）
   getConfig: () => ipcRenderer.invoke('config:get-public'),
   setConfig: (partial) => ipcRenderer.invoke('config:set', partial),

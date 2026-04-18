@@ -37,6 +37,11 @@ function registerIpcHandlers() {
     const nx = dragStart.winX + (pos.x - dragStart.mouseX);
     const ny = dragStart.winY + (pos.y - dragStart.mouseY);
     win.setPosition(nx, ny, false);
+    // 拖动中实时刷新边缘/探头状态（让视觉即时响应）
+    try {
+      const { refreshEdgeState } = require('./movement');
+      refreshEdgeState();
+    } catch (_) {}
   });
 
   ipcMain.handle('pet:drag-end', () => {
@@ -47,6 +52,11 @@ function registerIpcHandlers() {
       const [x, y] = win.getPosition();
       setConfig({ pet: { position: { x, y } } });
     }
+    // 松手后：若被扔到屏幕外，拉回露一半（探头效果）+ 触发 edge/peek 广播
+    try {
+      const { maybeApplyPeekClamp } = require('./movement');
+      maybeApplyPeekClamp();
+    } catch (_) {}
   });
 
   // ---- 鼠标穿透 ----

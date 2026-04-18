@@ -1,8 +1,9 @@
-// AI 智能体主循环：定时截屏 → 调 API → 广播给渲染
+// AI 智能体主循环：定时截屏 → 调 API → 广播给渲染 + 驱动桌宠移动
 const { captureScreen } = require('../main/capture');
 const { send } = require('./adapter');
 const { buildSystemPrompt, parseAIResponse } = require('./prompt');
 const { getConfig } = require('../config/store');
+const movement = require('../main/movement');
 
 let firstTickTimeout = null;
 let intervalHandle = null;
@@ -55,6 +56,10 @@ async function runOnce({ userText = null, skipImage = false } = {}) {
     consecutiveErrors = 0;
     const parsed = parseAIResponse(text);
     broadcast('ai:tick-event', parsed);
+    // 执行移动指令（AI 决定桌宠去哪）
+    if (parsed.move && parsed.move !== 'stay') {
+      movement.moveTo(parsed.move);
+    }
     return parsed;
   } catch (err) {
     consecutiveErrors += 1;

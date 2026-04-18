@@ -140,8 +140,83 @@ html, body {
 }
 
 /* ====================================================
-   Overlay 飘字（? / Z / ♥ / ♪ / 怒）水墨色调
+   边缘吸附 · 贴墙/贴顶（edge-*）
+   原理：窗口 x/y 已由主进程推到屏幕边缘；
+        CSS 把 body 重定位到窗口对应侧 + 旋转，
+        视觉上就是桌宠"吸附"在屏幕边缘。
    ==================================================== */
+
+/* 贴屏幕左边 —— body 移到窗口左侧中间，整体顺时针旋转 90°（头朝下） */
+.pet.edge-left .pet-body {
+  left: 6px;
+  bottom: 50%;
+  transform: translateY(50%) rotate(90deg);
+  transform-origin: center center;
+}
+.pet.edge-left .pet-shadow { display: none; }  /* 地面阴影在墙上没意义 */
+
+/* 贴屏幕右边 */
+.pet.edge-right .pet-body {
+  left: auto;
+  right: 6px;
+  bottom: 50%;
+  transform: translateY(50%) rotate(-90deg);
+  transform-origin: center center;
+}
+.pet.edge-right .pet-shadow { display: none; }
+
+/* 贴屏幕顶 —— 倒立 */
+.pet.edge-top .pet-body {
+  top: 6px;
+  bottom: auto;
+  transform: translateX(-50%) rotate(180deg);
+  transform-origin: center center;
+}
+.pet.edge-top .pet-shadow { display: none; }
+
+/* edge-bottom 默认（与 idle 相同） */
+
+/* 边缘状态下气泡位置会错，先简单隐藏 */
+.pet.edge-top .bubble,
+.pet.edge-left .bubble,
+.pet.edge-right .bubble {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ====================================================
+   探头 peek-* —— 窗口已经部分超出屏幕，
+   CSS 让身体来回轻轻摆动，像"偷看"
+   ==================================================== */
+.pet.peek-left .pet-body {
+  animation: peek-wiggle-right 2.0s ease-in-out infinite;
+}
+.pet.peek-right .pet-body {
+  animation: peek-wiggle-left 2.0s ease-in-out infinite;
+}
+.pet.peek-top .pet-body {
+  animation: peek-wiggle-down 2.0s ease-in-out infinite;
+}
+.pet.peek-bottom .pet-body {
+  animation: peek-wiggle-up 2.0s ease-in-out infinite;
+}
+
+@keyframes peek-wiggle-right {
+  0%, 100% { transform: translateX(-50%); }
+  50%      { transform: translateX(calc(-50% + 10px)); }
+}
+@keyframes peek-wiggle-left {
+  0%, 100% { transform: translateX(-50%); }
+  50%      { transform: translateX(calc(-50% - 10px)); }
+}
+@keyframes peek-wiggle-down {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(6px); }
+}
+@keyframes peek-wiggle-up {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-6px); }
+}
 .pet-overlay {
   position: absolute;
   left: 50%;

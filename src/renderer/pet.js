@@ -160,6 +160,43 @@
     }
   });
 
+  // ---------- 边缘 / 探头 / 移动事件 ----------
+  const EDGE_CLASSES = ['edge-left', 'edge-right', 'edge-top', 'edge-bottom'];
+  const PEEK_CLASSES = ['peek-left', 'peek-right', 'peek-top', 'peek-bottom'];
+  let currentEdge = 'none';
+  let isMovingByAI = false;
+
+  window.pet?.onEdgeChanged?.((edge) => {
+    EDGE_CLASSES.forEach((c) => petEl.classList.remove(c));
+    if (edge && edge !== 'none') petEl.classList.add('edge-' + edge);
+    currentEdge = edge || 'none';
+    pet.markInteraction();
+  });
+  window.pet?.onPeekChanged?.((side) => {
+    PEEK_CLASSES.forEach((c) => petEl.classList.remove(c));
+    if (side) {
+      petEl.classList.add('peek-' + side);
+      // 探头时表情用 think + 小气泡
+      pet.setState('think', { stickMs: 5000 });
+      bubble.show('偷偷看一下~', 3);
+    }
+    pet.markInteraction();
+  });
+  window.pet?.onMoving?.((data) => {
+    if (!data) return;
+    if (data.moving) {
+      isMovingByAI = true;
+      pet.setState('walk');
+    } else if (isMovingByAI) {
+      isMovingByAI = false;
+      if (currentEdge && currentEdge !== 'none') {
+        pet.setState('idle');
+      } else {
+        pet.setState('happy', { stickMs: 1200 });
+      }
+    }
+  });
+
   // ---------- 调试接口 ----------
   window.__petDebug = {
     setState: (s) => pet.setState(s),
