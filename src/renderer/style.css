@@ -1,0 +1,427 @@
+/* ============================================================
+   QQ糖桌宠 — 像素果冻史莱姆 CSS
+   - 整窗透明，只有史莱姆本体可见
+   - 纯 CSS 绘制 + keyframes，不依赖任何图片资源
+   - 用 pixelated 渲染保证像素感
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  image-rendering: pixelated;
+}
+
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+}
+
+/* ---------- 史莱姆本体 ---------- */
+.pet {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  transform-origin: center bottom;
+  animation: breathing 2.4s ease-in-out infinite;
+  cursor: grab;
+  transition: filter .25s;
+}
+.pet:active { cursor: grabbing; }
+
+.pet-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  width: 110px;
+  height: 14px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,0) 70%);
+  filter: blur(2px);
+  z-index: 0;
+  animation: shadow-pulse 2.4s ease-in-out infinite;
+}
+
+.pet-body {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 128px;
+  height: 108px;
+  /* 史莱姆钟形：上圆下扁 */
+  border-radius: 50% 50% 42% 42% / 62% 62% 40% 40%;
+  background:
+    radial-gradient(circle at 38% 28%, #d8fff0 0%, #7eefc4 35%, #3cc895 70%, #1f9a70 100%);
+  box-shadow:
+    inset -10px -14px 20px rgba(0,70,40,.35),
+    inset 8px 10px 14px rgba(255,255,255,.35),
+    0 4px 10px rgba(0,0,0,.15);
+  overflow: hidden;
+  z-index: 1;
+  /* 像素感：禁用亚像素抗锯齿 */
+  image-rendering: pixelated;
+}
+
+/* 顶部高光 */
+.pet-highlight {
+  position: absolute;
+  top: 12%;
+  left: 20%;
+  width: 28%;
+  height: 18%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255,255,255,.85), rgba(255,255,255,.1));
+  filter: blur(1px);
+  transform: rotate(-20deg);
+}
+
+/* ---------- 脸 ---------- */
+.pet-face {
+  position: absolute;
+  top: 34%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.eye {
+  position: absolute;
+  width: 18px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.08);
+  overflow: hidden;
+  transition: all .18s;
+}
+.eye-l { left: 30px; top: 18px; }
+.eye-r { right: 30px; top: 18px; }
+
+.pupil {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 11px;
+  background: #1a1a24;
+  border-radius: 50%;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.9);
+  transition: all .2s;
+}
+
+.mouth {
+  position: absolute;
+  left: 50%;
+  top: 48px;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 10px;
+  border: 2px solid transparent;
+  border-bottom: 2px solid #2a2a36;
+  border-radius: 0 0 18px 18px;
+  transition: all .2s;
+}
+
+.blush {
+  position: absolute;
+  width: 14px;
+  height: 7px;
+  background: radial-gradient(ellipse at center, rgba(255,120,140,.8), rgba(255,120,140,0));
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.blush-l { left: 18px; top: 42px; }
+.blush-r { right: 18px; top: 42px; }
+
+/* ---------- 状态：通用表情 overlay ---------- */
+.pet-overlay {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: 20px;
+  color: #fff;
+  text-shadow: 0 0 4px rgba(0,0,0,.4);
+  z-index: 2;
+}
+
+/* ====================================================
+   各状态 —— 父元素类控制
+   ==================================================== */
+
+/* idle —— 只保留默认的 breathing */
+
+/* walk —— 左右轻微晃 + 整体偏移交给 JS */
+.pet.state-walk {
+  animation: walk-bounce 0.6s ease-in-out infinite;
+}
+
+/* sleep —— 整体压扁 + 眼睛闭合 */
+.pet.state-sleep .pet-body {
+  height: 88px;
+  border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
+}
+.pet.state-sleep .eye {
+  height: 2px;
+  top: 28px;
+  border-radius: 2px;
+  background: #2a2a36;
+}
+.pet.state-sleep .pupil { opacity: 0; }
+.pet.state-sleep .mouth {
+  width: 14px;
+  height: 4px;
+  border-bottom: 2px solid #2a2a36;
+  top: 52px;
+}
+.pet.state-sleep { animation: sleep-breath 3.4s ease-in-out infinite; }
+
+/* sleepy —— 半闭眼 */
+.pet.state-sleepy .eye {
+  height: 10px;
+  top: 24px;
+}
+.pet.state-sleepy .pupil { top: 80%; }
+
+/* shock —— 放大 + 眼睛圆睁 */
+.pet.state-shock {
+  animation: shock-shake .5s ease-in-out;
+}
+.pet.state-shock .eye {
+  width: 22px;
+  height: 26px;
+  top: 15px;
+}
+.pet.state-shock .pupil {
+  width: 12px;
+  height: 14px;
+}
+.pet.state-shock .mouth {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #2a2a36;
+  border-radius: 50%;
+  top: 46px;
+  background: #2a2a36;
+}
+
+/* happy —— 弯眼 + 小跳 */
+.pet.state-happy {
+  animation: happy-hop .55s ease-in-out 2;
+}
+.pet.state-happy .eye {
+  height: 8px;
+  top: 22px;
+  border-radius: 20px 20px 2px 2px;
+  background: transparent;
+  border-top: 3px solid #2a2a36;
+}
+.pet.state-happy .pupil { opacity: 0; }
+.pet.state-happy .mouth {
+  width: 22px;
+  height: 14px;
+  border-bottom: 3px solid #2a2a36;
+  border-radius: 0 0 22px 22px;
+}
+.pet.state-happy .blush { opacity: .9; }
+
+/* think —— 轻微倾斜 + 问号 */
+.pet.state-think .pet-body {
+  transform: translateX(-50%) rotate(-4deg);
+}
+.pet.state-think .pupil {
+  top: 30%;
+  left: 65%;
+}
+
+/* angry —— 红色化 + 震动 */
+.pet.state-angry .pet-body {
+  background:
+    radial-gradient(circle at 38% 28%, #ffd8d0 0%, #ff8870 35%, #d63d28 70%, #971810 100%);
+  animation: angry-shake .18s linear infinite;
+}
+.pet.state-angry .pupil {
+  background: #ff3015;
+}
+.pet.state-angry .mouth {
+  width: 20px;
+  height: 6px;
+  border-bottom: none;
+  border-top: 3px solid #2a2a36;
+  border-radius: 22px 22px 0 0;
+  top: 52px;
+}
+
+/* love —— 爱心眼 */
+.pet.state-love .pupil {
+  background: #ff4e78;
+  width: 14px;
+  height: 12px;
+  border-radius: 50% 50% 50% 50%;
+  box-shadow:
+    -3px -2px 0 #ff4e78,
+    3px -2px 0 #ff4e78,
+    inset 0 -2px 0 rgba(0,0,0,.15);
+  transform: translate(-50%, -50%) rotate(-45deg);
+  top: 50%;
+}
+.pet.state-love .blush { opacity: .95; }
+
+/* drag —— 拉伸感 */
+.pet.state-drag .pet-body {
+  animation: drag-wobble .4s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+/* ====================================================
+   Keyframes
+   ==================================================== */
+
+@keyframes breathing {
+  0%, 100% { transform: translateY(0) scaleY(1) scaleX(1); }
+  50%      { transform: translateY(-2px) scaleY(1.03) scaleX(.98); }
+}
+
+@keyframes shadow-pulse {
+  0%, 100% { opacity: .9; transform: translateX(-50%) scaleX(1); }
+  50%      { opacity: .55; transform: translateX(-50%) scaleX(.88); }
+}
+
+@keyframes walk-bounce {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-6px) rotate(3deg); }
+}
+
+@keyframes happy-hop {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  30%      { transform: translateY(-12px) scaleY(1.08); }
+  60%      { transform: translateY(0) scaleY(.92); }
+}
+
+@keyframes shock-shake {
+  0%   { transform: translateX(0) scale(1); }
+  25%  { transform: translateX(-4px) scale(1.08); }
+  50%  { transform: translateX(4px)  scale(1.08); }
+  75%  { transform: translateX(-2px) scale(1.04); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes angry-shake {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  25%      { transform: translateX(-51%) translateY(-1px); }
+  50%      { transform: translateX(-49%) translateY(1px); }
+  75%      { transform: translateX(-51%) translateY(0); }
+}
+
+@keyframes sleep-breath {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(0) scaleY(1.04); }
+}
+
+@keyframes drag-wobble {
+  0%, 100% { transform: translateX(-50%) skewX(0deg) scaleY(1); }
+  50%      { transform: translateX(-50%) skewX(6deg)  scaleY(.92); }
+}
+
+/* ====================================================
+   Overlay 飘字（?、Z、❤）
+   ==================================================== */
+.overlay-icon {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  animation: overlay-float 1.8s ease-in-out infinite;
+  font-weight: bold;
+}
+@keyframes overlay-float {
+  0%   { transform: translate(-50%, 0) scale(.8); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translate(-50%, -18px) scale(1.15); opacity: 0; }
+}
+
+/* ====================================================
+   对话气泡
+   ==================================================== */
+.bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 152px;
+  transform: translateX(-50%);
+  max-width: 200px;
+  min-width: 60px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, .96);
+  color: #1e1e28;
+  border: 2px solid #3b4050;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  word-wrap: break-word;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s, transform .25s;
+  image-rendering: pixelated;
+  font-family: "Consolas", "Microsoft YaHei", monospace;
+}
+.bubble:not(.hidden) {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+.bubble.hidden { opacity: 0; pointer-events: none; }
+
+.bubble-tail {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid rgba(255, 255, 255, .96);
+  filter: drop-shadow(0 2px 1px rgba(0,0,0,.1));
+}
+.bubble-tail::after {
+  content: "";
+  position: absolute;
+  left: -10px; top: -12px;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #3b4050;
+  z-index: -1;
+}
+
+.bubble-text {
+  position: relative;
+  z-index: 1;
+}
+.bubble-text .typing-cursor {
+  display: inline-block;
+  width: 6px;
+  background: #1e1e28;
+  animation: blink 0.6s steps(1) infinite;
+  margin-left: 1px;
+}
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}

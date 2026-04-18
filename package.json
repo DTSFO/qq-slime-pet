@@ -1,0 +1,52 @@
+{
+  "name": "qq-slime-pet",
+  "version": "0.1.0",
+  "description": "一只会看着屏幕搞怪吐槽的像素史莱姆桌宠 AI 智能体 (Electron)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "electron",
+    "desktop-pet",
+    "slime",
+    "ai-agent",
+    "claude",
+    "openai",
+    "pixel-art"
+  ],
+  "author": "",
+  "license": "Unlicense",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "build": {
+    "appId": "io.github.qq-slime-pet",
+    "productName": "QQ糖桌宠",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  }
+}

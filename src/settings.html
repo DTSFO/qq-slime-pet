@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>QQ糖桌宠 - 设置</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #1e1f26;
+      color: #eaeaf0;
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+    }
+    .container {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 100%;
+      overflow-y: auto;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 8px;
+      color: #7eefc4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1::before {
+      content: "●";
+      color: #3cc895;
+    }
+    .section {
+      background: #272934;
+      border-radius: 8px;
+      padding: 14px 16px;
+      border: 1px solid #32343f;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #9fa0b0;
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .field:last-child { margin-bottom: 0; }
+    .field-row {
+      display: flex;
+      gap: 12px;
+    }
+    .field-row .field { flex: 1; }
+    label {
+      font-size: 12px;
+      color: #b7b9c9;
+    }
+    input[type=text],
+    input[type=password],
+    input[type=number],
+    select,
+    textarea {
+      background: #191a22;
+      border: 1px solid #32343f;
+      border-radius: 5px;
+      color: #eaeaf0;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #3cc895;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      font-family: "Consolas", "Microsoft YaHei", monospace;
+      line-height: 1.5;
+    }
+    .checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .checkbox input { margin: 0; }
+    .hint {
+      font-size: 11px;
+      color: #6b6d7e;
+      line-height: 1.45;
+    }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      padding-top: 8px;
+      border-top: 1px solid #32343f;
+    }
+    button {
+      background: #3cc895;
+      color: #0c1a12;
+      border: 0;
+      padding: 8px 16px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    button:hover { background: #55e5a9; }
+    button.secondary {
+      background: #32343f;
+      color: #eaeaf0;
+    }
+    button.secondary:hover { background: #3e414f; }
+    button.ghost {
+      background: transparent;
+      color: #7eefc4;
+      border: 1px solid #3cc895;
+    }
+    button.ghost:hover { background: rgba(60,200,149,.1); }
+
+    .status {
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 5px;
+      display: none;
+      margin-bottom: 12px;
+    }
+    .status.ok { display: block; background: rgba(60,200,149,.15); color: #7eefc4; border: 1px solid #3cc895; }
+    .status.err { display: block; background: rgba(255,90,90,.15); color: #ffb3b3; border: 1px solid #ff5a5a; }
+    .status.info { display: block; background: rgba(100,150,255,.15); color: #a8c3ff; border: 1px solid #6496ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>QQ糖桌宠设置</h1>
+
+    <div class="status" id="status"></div>
+
+    <div class="section">
+      <h3 class="section-title">AI 大模型</h3>
+
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="ai-enabled" />
+          启用 AI 智能体
+        </label>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="ai-protocol">API 协议</label>
+          <select id="ai-protocol">
+            <option value="messages">messages — Anthropic /v1/messages</option>
+            <option value="chat">chat — OpenAI /v1/chat/completions</option>
+            <option value="responses">responses — OpenAI /v1/responses</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ai-endpoint">API Endpoint</label>
+        <input type="text" id="ai-endpoint" placeholder="https://api.anthropic.com" />
+        <div class="hint">默认: Anthropic 用 https://api.anthropic.com，OpenAI 用 https://api.openai.com，可填兼容代理。</div>
+      </div>
+
+      <div class="field">
+        <label for="ai-key">API Key</label>
+        <input type="password" id="ai-key" placeholder="sk-..." autocomplete="off" />
+        <div class="hint">仅存在本机配置文件，不会上传。</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="ai-model">模型名</label>
+          <input type="text" id="ai-model" placeholder="claude-sonnet-4-6" />
+        </div>
+        <div class="field">
+          <label for="ai-temp">Temperature</label>
+          <input type="number" id="ai-temp" min="0" max="2" step="0.1" value="0.8" />
+        </div>
+        <div class="field">
+          <label for="ai-maxtok">Max Tokens</label>
+          <input type="number" id="ai-maxtok" min="64" max="4096" step="64" value="512" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ai-prompt">人设 System Prompt</label>
+        <textarea id="ai-prompt"></textarea>
+        <div class="hint">
+          系统会强制要求模型返回 JSON：{emotion, action, speech, duration}。修改人设时保留这个约定，否则桌宠的表情/动画会失效。
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3 class="section-title">屏幕观察</h3>
+
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="cap-auto" />
+          自动截屏（每次调 AI 都带当前屏幕截图）
+        </label>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="cap-interval">截屏间隔 (秒)</label>
+          <input type="number" id="cap-interval" min="15" max="3600" step="5" value="60" />
+        </div>
+        <div class="field">
+          <label for="cap-maxw">截图最大宽度</label>
+          <input type="number" id="cap-maxw" min="480" max="2560" step="80" value="1280" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="cap-excludeself" checked />
+          截图时自动隐藏桌宠（避免"自拍循环"）
+        </label>
+      </div>
+
+      <div class="hint">
+        ⚠️ 每次截屏 + 多模态调用都会消耗 token。以 1280×720 估算，每次约 1000-2000 prompt tokens。60 秒间隔 ≈ 每小时 60 次。请按你的账户预算调整。
+      </div>
+    </div>
+
+    <div class="section">
+      <h3 class="section-title">桌宠</h3>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="pet-name">桌宠名字</label>
+          <input type="text" id="pet-name" value="QQ糖" />
+        </div>
+        <div class="field">
+          <label for="pet-size">桌宠大小 (px)</label>
+          <input type="number" id="pet-size" min="120" max="400" step="10" value="220" />
+        </div>
+        <div class="field">
+          <label for="pet-bubble">气泡默认秒数</label>
+          <input type="number" id="pet-bubble" min="1" max="20" step="1" value="4" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="pet-ontop" checked />
+          始终置顶
+        </label>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="ghost" id="btn-test">🔌 测试连接</button>
+      <button class="secondary" id="btn-cancel">取消</button>
+      <button id="btn-save">保存</button>
+    </div>
+  </div>
+
+  <script src="./settings/settings.js"></script>
+</body>
+</html>

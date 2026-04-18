@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>QQ糖桌宠</title>
+  <link rel="stylesheet" href="./renderer/style.css" />
+</head>
+<body>
+  <div id="stage" class="stage">
+    <!-- 史莱姆本体由 sprite.js 注入 -->
+    <div id="pet" class="pet state-idle">
+      <div class="pet-shadow"></div>
+      <div class="pet-body">
+        <div class="pet-highlight"></div>
+        <div class="pet-face">
+          <div class="eye eye-l"><span class="pupil"></span></div>
+          <div class="eye eye-r"><span class="pupil"></span></div>
+          <div class="mouth"></div>
+          <div class="blush blush-l"></div>
+          <div class="blush blush-r"></div>
+        </div>
+        <div class="pet-overlay">
+          <!-- think ?、sleep Z、love ❤ 等飘字都挂在这里 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 气泡 -->
+    <div id="bubble" class="bubble hidden">
+      <div class="bubble-text"></div>
+      <div class="bubble-tail"></div>
+    </div>
+  </div>
+
+  <script src="./renderer/sprite.js"></script>
+  <script src="./renderer/bubble.js"></script>
+  <script src="./renderer/drag.js"></script>
+  <script src="./renderer/pet.js"></script>
+</body>
+</html>
