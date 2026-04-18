@@ -6,7 +6,7 @@ const {
   closeSettingsWindow,
 } = require('./window');
 const { getConfig, setConfig, getPublicConfig } = require('../config/store');
-const { send: aiSend } = require('../ai/adapter');
+const { send: aiSend, listModels } = require('../ai/adapter');
 const {
   startAgent,
   stopAgent,
@@ -114,6 +114,17 @@ function registerIpcHandlers() {
         config: cfg,
       });
       return { ok: true, text: r.text?.slice(0, 100) };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message || err) };
+    }
+  });
+
+  // ---- AI 模型列表 ----
+  ipcMain.handle('ai:list-models', async (_e, cfgOverride) => {
+    try {
+      const cfg = { ...getConfig().ai, ...(cfgOverride || {}) };
+      const models = await listModels(cfg);
+      return { ok: true, models };
     } catch (err) {
       return { ok: false, error: String(err && err.message || err) };
     }

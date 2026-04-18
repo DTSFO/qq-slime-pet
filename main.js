@@ -8,6 +8,13 @@ const { createTray } = require('./src/main/tray');
 const { startAgent, stopAgent } = require('./src/ai/agent');
 const { getConfig } = require('./src/config/store');
 
+// ---- 性能/渲染开关（必须在 app.ready 前调用） ----
+// 启用 GPU 光栅化，改善合成帧率（Electron 33 默认开启，这里兜底）
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+// 对于透明/置顶窗口，减少 DWM 抖动
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
 // 单实例锁：防止开多只桌宠
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

@@ -94,22 +94,33 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 560,
-    height: 680,
+    height: 720,
     title: 'QQ糖桌宠 - 设置',
     resizable: true,
     minimizable: true,
     maximizable: false,
     autoHideMenuBar: true,
     backgroundColor: '#1e1f26',
+    // 先隐藏，等内容准备好再显示，避免白屏闪烁 / 帧率掉
+    show: false,
+    paintWhenInitiallyHidden: true,
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false, // 设置窗口不后台节流
+      // 开启 disk 缓存，避免每次重加载
+      v8CacheOptions: 'code',
     },
   });
 
   settingsWindow.loadFile(path.join(__dirname, '..', 'settings.html'));
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+    settingsWindow.focus();
+  });
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;

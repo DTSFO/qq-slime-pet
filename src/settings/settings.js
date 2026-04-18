@@ -1,7 +1,10 @@
-// 设置窗口渲染逻辑：加载配置 → 填表单 → 保存
+// 设置窗口渲染逻辑：加载配置 → 填表单 → 保存 + 模型列表拉取
 (function () {
   const $ = (id) => document.getElementById(id);
   const status = $('status');
+
+  const ANTHROPIC_DEFAULT = 'https://api.anthropic.com';
+  const OPENAI_DEFAULT = 'https://api.openai.com';
 
   function setStatus(msg, type = 'info') {
     status.className = 'status ' + type;
@@ -9,13 +12,17 @@
   }
   function clearStatus() { status.className = 'status'; status.textContent = ''; }
 
+  function setHint(el, msg, type) {
+    el.textContent = msg;
+    el.className = 'hint' + (type ? ' hint-' + type : '');
+  }
+
   async function load() {
     const cfg = await window.pet.getConfig();
     // AI
     $('ai-enabled').checked = !!cfg.ai?.enabled;
     $('ai-protocol').value = cfg.ai?.protocol || 'messages';
     $('ai-endpoint').value = cfg.ai?.endpoint || '';
-    // apiKey 在脱敏版中已被删除；只有 hasApiKey 布尔
     $('ai-key').value = '';
     $('ai-key').placeholder = cfg.ai?.hasApiKey ? '（已配置，留空则不修改）' : 'sk-...';
     $('ai-model').value = cfg.ai?.model || '';
@@ -85,10 +92,8 @@
     clearStatus();
     setStatus('正在连接...', 'info');
     try {
-      // 测试用当前表单里的配置（但如果 key 为空，用已保存的）
       const payload = collect(false);
       const override = { ...payload.ai };
-      // 如果 key 输入框为空，让主进程用已存的
       if (!override.apiKey) delete override.apiKey;
       const r = await window.pet.testConnection(override);
       if (r.ok) {
@@ -105,17 +110,56 @@
     window.pet.closeSettings();
   });
 
-  // 协议切换时自动补默认 endpoint（如果当前 endpoint 是另一种默认值）
-  $('ai-protocol').addEventListener('change', (e) => {
-    const anth = 'https://api.anthropic.com';
-    const oai = 'https://api.openai.com';
-    const cur = $('ai-endpoint').value.trim();
-    if (e.target.value === 'messages' && (cur === oai || cur === '')) {
-      $('ai-endpoint').value = anth;
-    } else if ((e.target.value === 'chat' || e.target.value === 'responses') &&
-               (cur === anth || cur === '')) {
-      $('ai-endpoint').value = oai;
+  /* ---------- 模型列表拉取 ---------- */
+  $('btn-fetch-models').addEventListener('click', async () => {
+    const btn = $('btn-fetch-models');
+    const hint = $('models-hint');
+    if (btn.classList.contains('loading')) return;
+    btn.classList.add('loading');
+    setHint(hint, '正在拉取模型列表...', '');
+    try {
+      const payload = collect(false);
+      const override = { ...payload.ai };
+      if (!override.apiKey) delete override.apiKey;
+      const r = await window.pet.listModels(override);
+      if (r.ok) {
+        const datalist = $('models-list');
+        datalist.innerHTML = '';
+        for (const id of r.models) {
+          const opt = document.createElement('option');
+          opt.value = id;
+          datalist.appendChild(opt);
+        }
+        if (r.models.length === 0) {
+          setHint(hint, '接口返回空列表，建议手动输入', 'err');
+        } else {
+          setHint(hint, `已获取 ${r.models.length} 个模型 · 点击输入框展开下拉`, 'ok');
+          // 如果当前模型不在列表中，不自动覆盖；若为空则填第一个
+          const cur = $('ai-model').value.trim();
+          if (!cur) $('ai-model').value = r.models[0];
+        }
+      } else {
+        setHint(hint, `失败: ${r.error}（可手动输入模型名）`, 'err');
+      }
+    } catch (err) {
+      setHint(hint, '失败: ' + err.message, 'err');
+    } finally {
+      btn.classList.remove('loading');
     }
+  });
+
+  // 协议切换：自动替换默认 endpoint
+  $('ai-protocol').addEventListener('change', (e) => {
+    const cur = $('ai-endpoint').value.trim();
+    if (e.target.value === 'messages' && (cur === OPENAI_DEFAULT || cur === '')) {
+      $('ai-endpoint').value = ANTHROPIC_DEFAULT;
+    } else if ((e.target.value === 'chat' || e.target.value === 'responses') &&
+               (cur === ANTHROPIC_DEFAULT || cur === '')) {
+      $('ai-endpoint').value = OPENAI_DEFAULT;
+    }
+    // 清空 datalist（因为换协议了，老列表无意义）
+    $('models-list').innerHTML = '';
+    setHint($('models-hint'), '协议已切换，请重新点 ↻ 拉取模型列表', '');
   });
 
   load().catch((err) => setStatus('加载配置失败: ' + err.message, 'err'));

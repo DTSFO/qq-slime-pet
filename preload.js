@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('pet', {
   closeSettings: () => ipcRenderer.invoke('settings:close'),
   saveSettings: (cfg) => ipcRenderer.invoke('settings:save', cfg),
   testConnection: (cfg) => ipcRenderer.invoke('ai:test-connection', cfg),
+  listModels: (cfg) => ipcRenderer.invoke('ai:list-models', cfg),
 
   // 位置同步
   savePosition: (x, y) => ipcRenderer.invoke('pet:save-position', { x, y }),
