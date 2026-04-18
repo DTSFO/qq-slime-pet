@@ -40,7 +40,7 @@
 ### 1. 安装
 
 ```bash
-git clone https://github.com/<your-username>/qq-slime-pet.git
+git clone https://github.com/DTSFO/qq-slime-pet.git
 cd qq-slime-pet
 npm install
 ```
