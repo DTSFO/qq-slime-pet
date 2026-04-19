@@ -12,10 +12,19 @@ let currentEdge = 'none';
 let currentPeek = null;
 let suspended = false; // 外部（例如设置 overlay）打开时挂起所有窗口动画
 
+// 状态广播去重：仅在变化时发送，减少 IPC 开销
+let lastBroadcastState = {
+  edge: 'none',
+  peek: null,
+  moving: false,
+  crawling: false,
+};
+
 // 巡逻（贴边爬行）状态
 let patrolTimer = null;        // 下一步定时器
 let patrolInFlight = false;    // 是否正在爬一步
 let patrolDir = 1;             // ±1：边缘方向（撞墙时反转）
+let patrolDirection = null;    // 'up' | 'down' | 'left' | 'right'             // ±1：边缘方向（撞墙时反转）
 let aiMoving = false;          // AI moveTo 期间不巡逻
 let userDragging = false;      // 用户拖拽期间不巡逻
 
@@ -46,7 +55,7 @@ function getPetDisplayBounds() {
   }
 }
 
-/** 目标位置计算：target 语义化 → (x, y) 像素坐标（始终基于主屏） */
+/** 目标位置计算：target 语义化 → (x, y) 像素坐标（基于桌宠当前所在屏幕） */
 function computeTargetPos(target, rect, bounds) {
   const pad = 0; // 允许紧贴边缘（edge-* 的视觉就是要贴墙）
   const cx = bounds.x + Math.round((bounds.width - rect.w) / 2);
@@ -130,7 +139,7 @@ function animateWindowTo(toX, toY, duration = 1200) {
   });
 }
 
-/** AI 走位：缓动移动到语义目标（基于主屏） */
+/** AI 走位：缓动移动到语义目标（基于桌宠当前所在屏幕，支持多显示器） */
 async function moveTo(target, { duration = 1600 } = {}) {
   if (suspended) return;
   if (!target || target === 'stay') return;
@@ -138,7 +147,7 @@ async function moveTo(target, { duration = 1600 } = {}) {
   if (!win || win.isDestroyed()) return;
   const rect = getWinRect();
   if (!rect) return;
-  const bounds = getPrimaryBounds();
+  const bounds = getPetDisplayBounds(); // 改为当前屏幕，不再硬编码主屏
   const pos = computeTargetPos(target, rect, bounds);
   if (!pos) return;
   const [toX, toY] = pos.map(Math.round);
@@ -171,16 +180,23 @@ async function ensureOnPrimary() {
 }
 
 function broadcastMoving(isMoving, target) {
+  const moving = !!isMoving;
+  if (lastBroadcastState.moving === moving) return;
+  lastBroadcastState.moving = moving;
   const win = getPetWin();
   if (win && !win.isDestroyed()) {
-    win.webContents.send('pet:moving', { moving: !!isMoving, target });
+    win.webContents.send('pet:moving', { moving, target });
   }
 }
 
-function broadcastCrawling(on) {
+function broadcastCrawling(direction, velocity = 1) {
   const win = getPetWin();
-  if (win && !win.isDestroyed()) {
-    win.webContents.send('pet:crawling', !!on);
+  if (!win || win.isDestroyed()) return;
+  // 传递方向和速度，或 null 停止爬行
+  if (direction) {
+    win.webContents.send('pet:crawling', { direction, velocity });
+  } else {
+    win.webContents.send('pet:crawling', null);
   }
 }
 
@@ -229,6 +245,7 @@ function refreshEdgeState() {
   if (edge !== currentEdge) {
     const prev = currentEdge;
     currentEdge = edge;
+    lastBroadcastState.edge = edge;
     win.webContents.send('pet:edge-changed', edge);
     // 巡逻启停：从 none → 某边 → 启动；→ none → 停止；换边 → 重启巡逻
     if (edge === 'none') {
@@ -240,6 +257,7 @@ function refreshEdgeState() {
   const peekSide = peek.side || null;
   if (peekSide !== currentPeek) {
     currentPeek = peekSide;
+    lastBroadcastState.peek = peekSide;
     win.webContents.send('pet:peek-changed', peekSide);
   }
 }
@@ -295,6 +313,20 @@ function setDragging(on) {
 
 /* -------------------- 贴边爬行巡逻 -------------------- */
 
+
+function updatePatrolDirection(edge, dir) {
+  // 根据边缘和方向确定爬行方向
+  if (edge === 'left') {
+    patrolDirection = dir > 0 ? 'down' : 'up';
+  } else if (edge === 'right') {
+    patrolDirection = dir > 0 ? 'down' : 'up';
+  } else if (edge === 'top') {
+    patrolDirection = dir > 0 ? 'right' : 'left';
+  } else if (edge === 'bottom') {
+    patrolDirection = dir > 0 ? 'right' : 'left';
+  }
+}
+
 function startPatrol(edge) {
   stopPatrol();
   if (suspended) return;
@@ -335,13 +367,20 @@ async function doPatrolStep(edge) {
     }
   }
 
+  // 更新爬行方向
+  updatePatrolDirection(edge, patrolDir);
+
+  // 计算速度倍率（距离越长，波动越快）
+  const moveDist = Math.sqrt((toX - rect.x) ** 2 + (toY - rect.y) ** 2);
+  const velocity = Math.max(0.5, Math.min(2.0, moveDist / 80));
+
   patrolInFlight = true;
-  broadcastCrawling(true);
+  broadcastCrawling(patrolDirection, velocity);
   try {
     await animateWindowTo(toX, toY, 1200);
   } finally {
     patrolInFlight = false;
-    broadcastCrawling(false);
+    broadcastCrawling(null);
   }
 
   // 偶尔反向，自然点

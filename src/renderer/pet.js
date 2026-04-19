@@ -99,38 +99,34 @@
     setTimeout(cleanup, 1000);
   })();
 
-  // 让 walkOffset 随时间慢慢归零
+  // P1 优化：合并定时器到单一 ticker
+  let tickCount = 0;
   setInterval(() => {
+    tickCount++;
+
     if (pet.state !== 'walk' && pet.state !== 'drag') {
       pet.walkOffset *= 0.9;
       if (Math.abs(pet.walkOffset) < 0.2) pet.walkOffset = 0;
       sprite.setOffsetX(pet.walkOffset);
     }
+
+    if (tickCount % 7 === 0) {
+      const now = Date.now();
+      const idleMs = now - pet.lastInteraction;
+
+      if (['drag', 'walk'].includes(pet.state)) return;
+      if (REACTION_STATES.includes(pet.state)) return;
+
+      if (idleMs > 5 * 60 * 1000) {
+        if (pet.state !== 'sleep') pet.setState('sleep');
+      } else if (idleMs > 3 * 60 * 1000) {
+        if (pet.state !== 'sleepy') pet.setState('sleepy', { stickMs: 60 * 1000 });
+      } else if (pet.state === 'idle' && idleMs > 8000 + Math.random() * 7000) {
+        pet.setState('walk');
+      }
+    }
   }, 200);
 
-  // ---------- 空闲自动状态转换 ----------
-  function idleTicker() {
-    const now = Date.now();
-    const idleMs = now - pet.lastInteraction;
-
-    // 当前处于反应动画 / 拖拽 / 走路时不做自动转换
-    if (['drag', 'walk'].includes(pet.state)) return;
-    if (REACTION_STATES.includes(pet.state)) return;
-
-    if (idleMs > 5 * 60 * 1000) {
-      // 5 分钟 → 睡觉
-      if (pet.state !== 'sleep') pet.setState('sleep');
-      return;
-    }
-    if (idleMs > 3 * 60 * 1000) {
-      if (pet.state !== 'sleepy') pet.setState('sleepy', { stickMs: 60 * 1000 });
-      return;
-    }
-    if (pet.state === 'idle' && idleMs > 8000 + Math.random() * 7000) {
-      pet.setState('walk');
-    }
-  }
-  setInterval(idleTicker, 1500);
 
   // ---------- 拖拽 + 点击 ----------
   const drag = new window.DragController(petEl, {
@@ -216,10 +212,24 @@
       }
     }
   });
-  window.pet?.onCrawling?.((on) => {
-    petEl.classList.toggle('crawling', !!on);
-    // 同步给 sprite：切到 crawl profile（像素级蠕动覆盖当前 state 的变形）
-    try { sprite.setCrawling(!!on); } catch (_) {}
+  window.pet?.onCrawling?.((data) => {
+    // 支持新格式 {direction, velocity} 和旧格式 boolean
+    if (!data) {
+      petEl.classList.remove('crawling');
+      try { sprite.setCrawling(null); } catch (_) {}
+      return;
+    }
+
+    petEl.classList.add('crawling');
+
+    // 新格式：{direction, velocity}
+    if (typeof data === 'object' && data.direction) {
+      try { sprite.setCrawling(data.direction, data.velocity || 1); } catch (_) {}
+    }
+    // 旧格式：boolean（向后兼容）
+    else if (typeof data === 'boolean') {
+      try { sprite.setCrawling(data); } catch (_) {}
+    }
   });
 
   // ---------- 退场动画：主进程广播 pet:farewell ----------

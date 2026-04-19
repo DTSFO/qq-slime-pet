@@ -121,11 +121,11 @@
   }
 
   const WIGGLE_PROFILES = {
-    idle: (t) => ({
+    idle: (t, velocity = 1) => ({
       shiftX: (row) => Math.round(Math.sin(t * 1.6 + row * 0.15) * 0.3 * rowDepth(row)),
       offsetY: (row) => Math.round(Math.sin(t * 2.2) * 0.5 * rowDepth(row)),
     }),
-    walk: (t) => ({
+    walk: (t, velocity = 1) => ({
       // 强烈前后推进波：phase 沿 row 传播，感觉像"推着走"
       shiftX: (row) => Math.round(Math.sin(t * 8 - row * 0.55) * 1.2 * (0.4 + rowDepth(row) * 0.7)),
       offsetY: (row) => {
@@ -134,25 +134,25 @@
         return Math.round(Math.sin(t * 16) * 0.6 * d - Math.abs(Math.sin(t * 8)) * 0.4 * d);
       },
     }),
-    crawl: (t) => ({
-      // 贴边爬行：波从一端传到另一端，单向推进
-      shiftX: (row) => Math.round(Math.sin(t * 5 - row * 0.7) * 1.4 * (0.3 + rowDepth(row) * 0.8)),
-      offsetY: (row) => Math.round(Math.cos(t * 5 - row * 0.7) * 0.5 * rowDepth(row)),
+    crawl: (t, velocity = 1) => ({
+      // 贴边爬行：波从一端传到另一端，单向推进（向右/向下）
+      shiftX: (row) => Math.round(Math.sin(t * 5 * velocity - row * 0.7) * 1.4 * (0.3 + rowDepth(row) * 0.8)),
+      offsetY: (row) => Math.round(Math.cos(t * 5 * velocity - row * 0.7) * 0.5 * rowDepth(row)),
     }),
-    sleep: (t) => ({
+    sleep: (t, velocity = 1) => ({
       shiftX: () => 0,
       offsetY: (row) => Math.round(Math.sin(t * 0.8) * 0.4 * rowDepth(row)),
     }),
-    sleepy: (t) => ({
+    sleepy: (t, velocity = 1) => ({
       shiftX: (row) => Math.round(Math.sin(t * 1.2) * 0.3 * rowDepth(row)),
       offsetY: (row) => Math.round(Math.sin(t * 1.4) * 0.5 * rowDepth(row)),
     }),
-    shock: (t) => ({
-      // 剧烈颤抖
-      shiftX: () => Math.round(Math.sin(t * 48) * 1.2),
-      offsetY: () => Math.round(Math.cos(t * 52) * 0.8),
+    shock: (t, velocity = 1) => ({
+      // 剧烈颤抖（降频：48Hz→24Hz 减少抖动感）
+      shiftX: () => Math.round(Math.sin(t * 24) * 1.2),
+      offsetY: () => Math.round(Math.cos(t * 26) * 0.8),
     }),
-    happy: (t) => ({
+    happy: (t, velocity = 1) => ({
       // 欢快左右摇摆 + 头部上下弹
       shiftX: (row) => Math.round(Math.sin(t * 7) * 1.1 * (1 - rowDepth(row))),
       offsetY: (row) => {
@@ -160,7 +160,7 @@
         return Math.round(-Math.abs(Math.sin(t * 6)) * 1.0 * (1 - d * 0.6));
       },
     }),
-    think: (t) => ({
+    think: (t, velocity = 1) => ({
       // 头微微歪：顶部向一侧偏
       shiftX: (row) => {
         const topBias = row < 8 ? (8 - row) / 8 : 0;
@@ -168,12 +168,12 @@
       },
       offsetY: (row) => Math.round(Math.sin(t * 1.8) * 0.3 * rowDepth(row)),
     }),
-    angry: (t) => ({
-      // 急促颤抖 + 微缩
-      shiftX: () => Math.round(Math.sin(t * 30) * 1.0),
-      offsetY: (row) => Math.round(Math.sin(t * 28) * 0.4 * rowDepth(row)),
+    angry: (t, velocity = 1) => ({
+      // 急促颤抖（降频：30Hz→16Hz 更自然）
+      shiftX: () => Math.round(Math.sin(t * 16) * 1.0),
+      offsetY: (row) => Math.round(Math.sin(t * 14) * 0.4 * rowDepth(row)),
     }),
-    love: (t) => ({
+    love: (t, velocity = 1) => ({
       // 心跳：每 0.7s 一次脉冲式膨胀
       shiftX: (row) => {
         const pulse = Math.abs(Math.sin(t * 4.5));
@@ -185,16 +185,37 @@
         return Math.round(-pulse * 0.8 * rowDepth(row));
       },
     }),
-    drag: (t) => ({
+    drag: (t, velocity = 1) => ({
       // 被拎起：左右大幅甩动
       shiftX: (row) => Math.round(Math.sin(t * 4) * 1.8 * rowDepth(row)),
       offsetY: (row) => Math.round(Math.cos(t * 4) * 0.9 * rowDepth(row)),
     }),
+    // 定向爬行 profiles（墙壁巡逻）
+    'crawl-up': (t, velocity = 1) => ({
+      // 向上爬：波从下往上传播（row 递减方向）
+      shiftX: (row) => Math.round(Math.sin(t * 5 * velocity + row * 0.7) * 1.4 * (0.3 + rowDepth(row) * 0.8)),
+      offsetY: (row) => Math.round(Math.cos(t * 5 * velocity + row * 0.7) * 0.5 * rowDepth(row)),
+    }),
+    'crawl-down': (t, velocity = 1) => ({
+      // 向下爬：波从上往下传播（row 递增方向）
+      shiftX: (row) => Math.round(Math.sin(t * 5 * velocity - row * 0.7) * 1.4 * (0.3 + rowDepth(row) * 0.8)),
+      offsetY: (row) => Math.round(Math.cos(t * 5 * velocity - row * 0.7) * 0.5 * rowDepth(row)),
+    }),
+    'crawl-left': (t, velocity = 1) => ({
+      // 向左爬：负 shiftX 主导
+      shiftX: (row) => Math.round(-Math.sin(t * 5 * velocity - row * 0.7) * 1.4 * (0.3 + rowDepth(row) * 0.8)),
+      offsetY: (row) => Math.round(Math.cos(t * 5 * velocity - row * 0.7) * 0.5 * rowDepth(row)),
+    }),
+    'crawl-right': (t, velocity = 1) => ({
+      // 向右爬：正 shiftX 主导
+      shiftX: (row) => Math.round(Math.sin(t * 5 * velocity - row * 0.7) * 1.4 * (0.3 + rowDepth(row) * 0.8)),
+      offsetY: (row) => Math.round(Math.cos(t * 5 * velocity - row * 0.7) * 0.5 * rowDepth(row)),
+    }),
   };
 
-  function getProfile(state, t) {
+  function getProfile(state, t, velocity = 1) {
     const fn = WIGGLE_PROFILES[state] || WIGGLE_PROFILES.idle;
-    return fn(t);
+    return fn(t, velocity);
   }
 
   /** 画带变形的 grid：每行独立按 shiftX/offsetY 偏移 */
@@ -236,11 +257,18 @@
       this.current = 'idle';
       this._faceKey = 'idle';
       this._profileKey = 'idle';
-      this._phase = 0;         // 秒为单位
+      this._phase = 0;
       this._lastT = 0;
       this._paused = false;
-      this._crawling = false;  // 贴边爬行（pet.js 控制）
+      this._crawling = false;
       this._overlayTimer = null;
+
+      // P0 优化：帧缓存 + 脏区检测
+      this._frameCache = new Map();
+      this._lastDrawnState = null;
+      this._lastDrawnPhase = -1;
+      this._isDirty = true;
+      this._staticStates = new Set(['sleep']);
 
       this._rafHandle = null;
       this._startRAF();
@@ -253,16 +281,24 @@
       this.current = state;
       this._faceKey = faceKey;
       this._profileKey = state;
+      this._isDirty = true;
 
-      // 同步到外层 class（保留少量必要的整体 CSS 动画）
       STATES.forEach((s) => this.el.classList.remove('state-' + s));
       this.el.classList.add('state-' + state);
 
       this._updateOverlay(state);
     }
 
-    setCrawling(on) {
-      this._crawling = !!on;
+    setCrawling(direction, velocity = 1) {
+      // direction: 'up' | 'down' | 'left' | 'right' | null
+      // 向后兼容：如果传入布尔值，转换为 'right' 或 null
+      if (typeof direction === 'boolean') {
+        direction = direction ? 'right' : null;
+      }
+      const changed = this._crawlDirection !== direction || this._crawlVelocity !== velocity;
+      this._crawlDirection = direction;
+      this._crawlVelocity = Math.max(0.5, Math.min(2.0, velocity));
+      if (changed) this._isDirty = true;
     }
 
     /** 外部暂停 rAF（如设置 overlay 打开时桌宠 display:none，停绘省电） */
@@ -277,6 +313,7 @@
     resumeAnimation() {
       if (!this._paused) return;
       this._paused = false;
+      this._isDirty = true;
       this._startRAF();
     }
 
@@ -296,28 +333,57 @@
     }
 
     _draw() {
-      const ctx = this.ctx;
-      ctx.clearRect(0, 0, 16, 16);
-      // 贴边爬行时用 crawl profile 覆盖（即便当前 state 是 idle / walk）
-      const profileKey = this._crawling ? 'crawl' : this._profileKey;
-      const deform = getProfile(profileKey, this._phase);
-
-      paintDeformedGrid(ctx, BODY, 0, 0, deform);
-
-      const face = FACES[this._faceKey];
-      if (face) {
-        // 脸部跟随所在行的变形，保证五官不飞出脸外
-        for (const eye of face.eyes || []) {
-          const dx = deform.shiftX(eye.y) | 0;
-          const dy = deform.offsetY(eye.y) | 0;
-          paintGrid(ctx, eye.grid, eye.x + dx, eye.y + dy);
-        }
-        if (face.mouth) {
-          const dx = deform.shiftX(face.mouth.y) | 0;
-          const dy = deform.offsetY(face.mouth.y) | 0;
-          paintGrid(ctx, face.mouth.grid, face.mouth.x + dx, face.mouth.y + dy);
-        }
+      let profileKey = this._profileKey;
+      if (this._crawlDirection) {
+        profileKey = 'crawl-' + this._crawlDirection;
       }
+      const cacheKey = `${profileKey}_${this._faceKey}`;
+
+      const isStatic = this._staticStates.has(profileKey);
+      const phaseKey = isStatic ? Math.floor(this._phase * 2) : Math.floor(this._phase * 10);
+
+      if (!this._isDirty &&
+          this._lastDrawnState === cacheKey &&
+          this._lastDrawnPhase === phaseKey) {
+        return;
+      }
+
+      const fullCacheKey = `${cacheKey}_${phaseKey}`;
+      let cachedFrame = this._frameCache.get(fullCacheKey);
+
+      if (cachedFrame) {
+        this.ctx.putImageData(cachedFrame, 0, 0);
+      } else {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, 16, 16);
+        const deform = getProfile(profileKey, this._phase, this._crawlVelocity);
+
+        paintDeformedGrid(ctx, BODY, 0, 0, deform);
+
+        const face = FACES[this._faceKey];
+        if (face) {
+          for (const eye of face.eyes || []) {
+            const dx = deform.shiftX(eye.y) | 0;
+            const dy = deform.offsetY(eye.y) | 0;
+            paintGrid(ctx, eye.grid, eye.x + dx, eye.y + dy);
+          }
+          if (face.mouth) {
+            const dx = deform.shiftX(face.mouth.y) | 0;
+            const dy = deform.offsetY(face.mouth.y) | 0;
+            paintGrid(ctx, face.mouth.grid, face.mouth.x + dx, face.mouth.y + dy);
+          }
+        }
+
+        if (this._frameCache.size > 100) {
+          const firstKey = this._frameCache.keys().next().value;
+          this._frameCache.delete(firstKey);
+        }
+        this._frameCache.set(fullCacheKey, ctx.getImageData(0, 0, 16, 16));
+      }
+
+      this._lastDrawnState = cacheKey;
+      this._lastDrawnPhase = phaseKey;
+      this._isDirty = false;
     }
 
     getState() { return this.current; }
