@@ -1,43 +1,85 @@
-# QQ糖 · 像素史莱姆桌宠 AI 智能体
+# 🍮 QQ Slime — Ink-Pixel Desktop Pet AI Agent
 
-> 一只粘在屏幕上的搞怪果冻史莱姆，会看着你的屏幕帮你打工/摸鱼/发呆，时不时冒出一句让你哭笑不得的吐槽。
+> **English** · [简体中文](./README.zh-CN.md)
 
-基于 **Electron** 构建，零素材依赖（纯 CSS 画的像素史莱姆），支持 **三种主流大模型 API 协议**（Anthropic Messages / OpenAI Chat Completions / OpenAI Responses），内置定时屏幕观察、AI 生成表情 & 动画 & 气泡 & 搞怪台词。
+A tiny Chinese-ink-style pixel slime that sits on your desktop, watches your screen through multimodal AI, and reacts with snarky comments, cute animations, and context-aware movement. Built with Electron, zero art assets required — the slime is drawn entirely in CSS/Canvas pixels.
 
-## ✨ 特性
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-lightgrey.svg)](https://unlicense.org/)
+[![Electron](https://img.shields.io/badge/electron-33.x-47848f.svg)](https://www.electronjs.org/)
+[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)]()
 
-- 🍮 **纯 CSS 果冻史莱姆**：零资源依赖，自带 10 种状态动画（idle/walk/sleep/shock/happy/think/angry/love/sleepy/drag）
-- 🖱️ **透明置顶 + 智能穿透**：不遮挡你操作桌面，指针碰到史莱姆才接管点击
-- 🤏 **拎起来扔**：可以任意拖到屏幕角落，位置自动记忆
-- 🧠 **AI 智能体观察**：定时截屏 → 多模态模型分析你在干啥 → 给出反应
-- 🔌 **三协议兼容**：支持 `messages` / `chat` / `responses` 任选一种，Anthropic / OpenAI / 兼容代理 / 本地模型都能接
-- 💬 **打字机对话气泡**：搞怪吐槽、夸夸模式、鼓励摸鱼一条龙
-- 🔒 **API Key 隔离**：只在主进程使用，渲染进程拿不到，不怕被 XSS
-- ⚙️ **完整设置面板**：协议 / endpoint / 模型 / 温度 / 截屏间隔 / 人设 全部可调
-- 🟢 **系统托盘 + 右键菜单**：暂停 AI、打开设置、一键退出
-- 📦 **单实例运行**：不会开出一窝史莱姆
+---
 
-## 🖼️ 预览
+## 🚨 Privacy & Safety Notice (READ BEFORE USE)
+
+This app **takes periodic screenshots of your primary display** and sends them to a **third-party AI provider of your choice** (Anthropic / OpenAI / any compatible proxy or local model you configure). By using this app, you acknowledge:
+
+> ### ⚠️ **Screenshot content leaves your machine.**
+>
+> - Every screenshot is uploaded to the API endpoint **you configure yourself** in the settings panel. It is **not** sent to the author of this app or any other server.
+> - Screenshots are base64-encoded and included in the multimodal request body. They are subject to the privacy policy and data-retention rules of the provider you choose — not ours.
+> - You are **solely responsible** for what your screen contains when this app is running. If you handle **passwords, payment info, private conversations, confidential code, medical records, classified material, or anything covered by an NDA or regulation**, PAUSE the AI from the tray menu, or don't enable screenshot capture at all.
+> - Defaults are conservative: screenshots are off until you enter an API key and enable the agent. Capture interval defaults to 60 seconds. You can pause anytime via the tray icon.
+> - This is a hobby / educational project. The author provides it "as is" under the Unlicense (public domain). **There is no warranty, no support obligation, and no liability** for any damages, data leakage, privacy breach, unexpected API bills, or consequences arising from its use. See [LICENSE](./LICENSE).
+> - Review the source code before running — it's all under `src/`, and all network traffic goes through `src/ai/protocol-*.js` so you can see exactly what gets sent.
+
+**If any of the above is unacceptable, do not install or run this app.**
+
+---
+
+## ✨ Features
+
+- 🖼️ **Pure-CSS/Canvas pixel slime** — Chinese-ink style (ghost-white body + ink wash shading), no external art assets. 16×16 pixel sprite at 8× upscale.
+- 🎭 **10 animation states** — idle / walk / sleep / sleepy / shock / happy / think / angry / love / drag — all driven by AI or interaction.
+- 👻 **True background operation** — `setContentProtection(true)` makes the pet invisible to `desktopCapturer`, PrintScreen, Snipaste, OBS, etc. The AI can screenshot your screen *without* capturing itself. No flicker, no hide/show loops.
+- 🧠 **Three protocol AI backend** — you can use any of:
+  - `messages` — Anthropic `/v1/messages`
+  - `chat` — OpenAI-compatible `/v1/chat/completions`
+  - `responses` — OpenAI `/v1/responses`
+- 🔄 **Auto model discovery** — enter endpoint + API key, click ↻, get the full list of available models. Custom dropdown (filter by typing, pick by clicking).
+- 🗺️ **AI-driven smart movement** — the model decides where the pet should go based on what's on screen:
+  - Full-screen video/game → slides to a `corner-br` to get out of your way
+  - IDE/document → settles on `edge-right` so it's out of sight
+  - Idle desktop → moves to `center` to hang out
+- 🧲 **Edge snap with crawl animation** — when pet is against a screen edge it rotates 90/180° and "clings to the wall".
+- 👀 **Off-screen peek** — if you drag the pet off-screen and release, it auto-clamps to keep ~45% of its body visible and plays a peeking wobble animation.
+- 💬 **Rice-paper speech bubbles** with typewriter effect — wide enough for long lines, positioned dynamically.
+- 🖱️ **Transparent click-through window** — only the pet's pixel area catches clicks; anywhere else passes through to the desktop.
+- 🗄️ **Config persistence** — API key, prompt, screenshot interval, pet size/name, position all saved via `electron-store`.
+- 🔒 **Secure by design** — API key lives only in the main process, never exposed to the renderer. contextIsolation + sandbox + strict CSP.
+- 🟢 **Tray menu** — toggle AI, open settings, pin-on-top, quit.
+
+---
+
+## 🖼️ Look & Feel
 
 ```
-  ┌──────────────────┐
-  │  "在写代码吗？"   │
-  │      加油哦       │
-  └──┐               │
-     ▼    ○  ○        <- 果冻高光
-       ◎──◎           <- 大眼睛
-        ♥             <- 害羞腮红
-    ╭──────╮
-    │  QQ  │          <- 半透明果冻身体
-    ╰──────╯
-       · ·            <- 底部阴影
+ Ghost-white pixel body + 3-layer ink-wash drop-shadow
+ Pixel eyes in muted ink (#3e3d48), red-ochre accents on LOVE state
+
+                    ___________
+                   / ( ·· )_ / )
+                  /  ¯¯¯¯¯¯   ¯¯\        ← Rice-paper speech bubble
+                  \____________/
+                        v
+                     ██████
+                   ████████████
+                  ██ ▄▄  ▄▄ ██       ← Pixel slime
+                  ██ ██  ██ ██       ← Auto-scales to 128×128 with pixelated rendering
+                  ████████████
+                  ██████████████
+                  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ← Ink sediment at base
+               ~~~~~~~~~~~~~~~~~~
+               ↑ Blurred ink wash
 ```
 
-（真实运行时是像素风 CSS 绘制的彩色史莱姆 + 呼吸动画）
+For a visual of all 10 states at once, open `preview.html` in any browser.
 
-## 🚀 快速开始
+---
 
-### 1. 安装
+## 🚀 Quick Start
+
+### 1. Clone & install
 
 ```bash
 git clone https://github.com/DTSFO/qq-slime-pet.git
@@ -45,79 +87,115 @@ cd qq-slime-pet
 npm install
 ```
 
-> **国内网络 / 企业代理导致 `unable to verify the first certificate` 报错？**
-> 仓库已内置 `.npmrc`，默认走 `npmmirror.com` 镜像下载 Electron 二进制。若仍卡住，可以：
-> - 删除 `node_modules` 后重试：`rm -rf node_modules && npm install`
-> - 或 Node 22+ 用系统证书：`set NODE_OPTIONS=--use-system-ca && npm install`
-> - 或彻底跳过校验（不推荐，仅调试）：`set NODE_TLS_REJECT_UNAUTHORIZED=0`
+> **SSL cert error / slow Electron download?** A `.npmrc` shipping with the repo points Electron binary downloads to `npmmirror.com` (friendlier for users behind strict firewalls). If you still hit issues:
+> ```bash
+> rm -rf node_modules && npm install
+> # or force system CA on Node 22+:
+> NODE_OPTIONS=--use-system-ca npm install
+> ```
 
-### 2. 运行
+### 2. Run
 
 ```bash
 npm start
 ```
 
-史莱姆会出现在屏幕右下角，开始慢慢呼吸。
+A small ink-pixel slime fades in at the bottom-right of your primary screen and starts breathing.
 
-### 3. 配置 AI（可选但推荐）
+### 3. Configure AI (optional but recommended)
 
-右键桌宠 → **打开设置** ，或双击系统托盘图标。
+Right-click the pet → **Open Settings**, or double-click the tray icon.
 
-选择一种 API 协议并填写 Key：
-
-#### 方案 A：Anthropic Claude（推荐）
-
-```
-协议:     messages
-Endpoint: https://api.anthropic.com
-Model:    claude-sonnet-4-6
-API Key:  sk-ant-...
-```
-
-#### 方案 B：OpenAI 或兼容服务
-
-```
-协议:     chat
-Endpoint: https://api.openai.com
-Model:    gpt-4.1-mini  / gpt-4o  / 等带视觉能力的模型
-API Key:  sk-...
-```
-
-#### 方案 C：OpenAI Responses API（新版接口）
-
-```
-协议:     responses
-Endpoint: https://api.openai.com
-Model:    gpt-4.1 / gpt-4.1-mini
-API Key:  sk-...
-```
-
-#### 方案 D：本地/代理（OpenAI 兼容）
-
-```
-协议:     chat
-Endpoint: http://localhost:11434      (Ollama)
-          或 https://your-proxy.com
-Model:    llama3.2-vision / qwen2-vl / ...
-API Key:  任意非空字符串（本地通常不校验）
-```
-
-保存后点 **测试连接** 验证，然后等约 5 秒 —— 桌宠就会开始自己看屏幕说话了。
-
-## 🎮 操作
-
-| 操作 | 行为 |
+| Field | Example |
 |---|---|
-| **左键单击桌宠** | 戳一下，触发 AI 即兴对话（不截图，省 token） |
-| **左键拖动** | 拎起史莱姆扔到任意位置 |
-| **右键桌宠** | 弹出菜单：暂停 AI / 主动聊天 / 打开设置 / 退出 |
-| **系统托盘** | 右键看完整菜单，双击打开设置 |
+| API Protocol | `messages` |
+| Endpoint | `https://api.anthropic.com` |
+| API Key | `sk-ant-...` (stored locally only) |
+| Model | Click ↻ to fetch list, then pick or type |
+| System Prompt | Editable, but keep the JSON contract at the end |
+| Screenshot interval | 60s default |
 
-## ⚙️ 三种协议请求格式
+Click **Save** — the agent auto-starts in ~5 seconds and begins watching your screen every interval.
 
-统一接口 `send({ systemPrompt, userText, imageBase64, config })`，内部按 `config.protocol` 分派：
+#### Backend options
 
-### `messages` (Anthropic)
+<details>
+<summary><b>Anthropic Claude</b> (recommended for vision quality)</summary>
+
+```
+Protocol: messages
+Endpoint: https://api.anthropic.com
+Model:    claude-sonnet-4-6 | claude-opus-4-7 | claude-haiku-4-5-20251001
+```
+</details>
+
+<details>
+<summary><b>OpenAI</b></summary>
+
+```
+Protocol: chat          (or responses for the newer API)
+Endpoint: https://api.openai.com
+Model:    gpt-4.1-mini | gpt-4o | any vision-capable model
+```
+</details>
+
+<details>
+<summary><b>Local model (Ollama, etc.)</b></summary>
+
+```
+Protocol: chat
+Endpoint: http://localhost:11434
+Model:    llama3.2-vision | qwen2-vl | any multimodal pull
+API Key:  anything non-empty (Ollama ignores it)
+```
+</details>
+
+<details>
+<summary><b>OpenAI-compatible proxy</b></summary>
+
+Use `chat` or `responses` protocol, point Endpoint at your proxy's base URL, set API Key per proxy docs. Works with any service that mirrors the OpenAI schema.
+</details>
+
+---
+
+## 🎮 Interactions
+
+| Action | Result |
+|---|---|
+| **Left-click the pet** | Poke — triggers a one-off AI ping (no screenshot, cheap) |
+| **Drag** | Pick it up and toss it anywhere |
+| **Drag off-screen** | Auto-clamps to edge showing ~45% body + peek wiggle |
+| **Right-click the pet** | Context menu: pause AI, manual chat, settings, quit |
+| **Tray icon** | Same menu, plus pin-on-top toggle |
+| **Let it sit still > 3 min** | Gets sleepy |
+| **Let it sit still > 5 min** | Falls asleep (Zzz overlay) |
+| **Any interaction while asleep** | Jumps awake with shock face |
+
+---
+
+## 🧩 AI Response Contract
+
+The system prompt forces the model to reply with **strict JSON only**:
+
+```json
+{
+  "emotion": "happy" | "shock" | "think" | "angry" | "sleepy" | "love" | "idle",
+  "action":  "idle" | "walk" | "jump" | "sleep",
+  "speech":  "<up to 30 Chinese chars>",
+  "duration": 4,
+  "move":    "stay" | "edge-left" | "edge-right" | "edge-top" | "edge-bottom"
+           | "corner-tl" | "corner-tr" | "corner-bl" | "corner-br" | "center"
+}
+```
+
+Parser fallback chain: `JSON.parse` → regex-extract `\{[\s\S]*\}` → treat raw text as `speech` with `emotion: "think"`. Unknown enum values fall back to safe defaults.
+
+---
+
+## 🔌 Protocol Request Shapes
+
+<details>
+<summary><code>messages</code> (Anthropic)</summary>
 
 ```http
 POST {endpoint}/v1/messages
@@ -137,9 +215,12 @@ anthropic-version: 2023-06-01
   }]
 }
 ```
-→ 从 `response.content[*].text` 提取
 
-### `chat` (OpenAI Chat Completions)
+Extract: `response.content[*].text`
+</details>
+
+<details>
+<summary><code>chat</code> (OpenAI Chat Completions)</summary>
 
 ```http
 POST {endpoint}/v1/chat/completions
@@ -147,19 +228,21 @@ Authorization: Bearer <key>
 
 {
   "model": "gpt-4.1-mini",
-  "max_tokens": 512,
   "messages": [
     {"role": "system", "content": "<systemPrompt>"},
-    {"role": "user", "content": [
+    {"role": "user",   "content": [
       {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
       {"type": "text",      "text": "<userText>"}
     ]}
   ]
 }
 ```
-→ 从 `response.choices[0].message.content` 提取
 
-### `responses` (OpenAI Responses)
+Extract: `response.choices[0].message.content`
+</details>
+
+<details>
+<summary><code>responses</code> (OpenAI Responses)</summary>
 
 ```http
 POST {endpoint}/v1/responses
@@ -177,146 +260,173 @@ Authorization: Bearer <key>
   }]
 }
 ```
-→ 优先 `response.output_text`，兼容 `response.output[*].content[*].text`
 
-## 🎭 AI 响应契约
+Extract: `response.output_text` → fallback to `response.output[*].content[*].text`
+</details>
 
-系统 prompt 强制要求模型返回 JSON：
+The three adapters share a common interface: `adapter.send({systemPrompt, userText, imageBase64, config}) → {text, raw}`.
 
-```json
-{
-  "emotion": "happy" | "shock" | "think" | "angry" | "sleepy" | "love" | "idle",
-  "action":  "idle" | "walk" | "jump" | "sleep",
-  "speech":  "<不超过30字的中文>",
-  "duration": 4
-}
-```
+Model discovery uses `GET {endpoint}/v1/models` with the appropriate auth header, parses `{data: []}` / `{models: []}` / raw array shapes.
 
-如果模型没按格式来（返回了自然语言），我们有三级降级解析：
-1. `JSON.parse(cleaned)`
-2. 正则抽取 `\{[\s\S]*\}` 再 parse
-3. 原文当 `speech`，`emotion: 'think'`
+---
 
-## 🏗️ 架构
+## 🏗️ Architecture
 
 ```
-┌──────────────── 主进程 (Node) ─────────────────┐
-│                                                │
-│   main.js ──────→ window.js  (桌宠 + 设置窗口)  │
-│                                                │
-│   ipc.js ─┬─→ ai/agent.js → ai/adapter.js ─┬─→ messages
-│           │                                ├─→ chat
-│           │                                └─→ responses
-│           │                                    ↓
-│           ├─→ main/capture.js (截屏+隐藏自身)   │
-│           └─→ config/store.js (持久化+脱敏)     │
-│                                                │
-└────────────────┬───────────────────────────────┘
-                 │  IPC (preload 白名单)
-┌────────────────┴───────────────────────────────┐
-│            渲染进程 (桌宠窗口)                  │
-│                                                │
-│   index.html ── pet.js (状态机)                 │
-│              ── sprite.js (CSS 类切换)          │
-│              ── bubble.js (气泡 + 打字机)       │
-│              ── drag.js (拖拽 + 穿透切换)       │
-│                                                │
-└────────────────────────────────────────────────┘
+ Main Process                             Renderer (pet window)
+ ─────────────────                        ────────────────────
+ main.js
+  ├─ window.js        (pet + settings)    index.html
+  │    setContentProtection(true)          ├─ pet.js       state machine
+  ├─ capture.js       desktopCapturer      ├─ sprite.js    canvas draws pixels
+  ├─ movement.js      smooth move / edge   ├─ bubble.js    typewriter
+  ├─ tray.js          system tray          ├─ drag.js      click-through toggle
+  ├─ ipc.js           handler registry     └─ style.css    animations + ink wash
+  └─ ai/
+       adapter.js     dispatch by protocol
+       protocol-messages / chat / responses
+       agent.js       60s loop → capture → API → broadcast → moveTo
+       prompt.js      system prompt + parser
+
+ IPC channels (preload.js exposes whitelist):
+   ai:chat, ai:tick-event, ai:list-models, ai:test-connection
+   pet:drag-{start,move,end}, pet:set-clickthrough, pet:context-menu
+   pet:edge-changed, pet:peek-changed, pet:moving
+   settings:{open,close,save}, config:{get-public,set}
 ```
 
-## 📁 目录结构
+---
+
+## 📁 Directory Structure
 
 ```
-.
-├── main.js                        # Electron 主进程入口
-├── preload.js                     # contextBridge 安全桥
-├── package.json
-├── LICENSE                        # Unlicense (公共领域)
+qq-slime-pet/
+├── main.js                         # Electron main entrypoint
+├── preload.js                      # IPC whitelist via contextBridge
+├── package.json                    # Electron + electron-store + electron-builder
+├── .npmrc                          # Electron binary mirror for restrictive networks
+├── LICENSE                         # Unlicense (public domain)
+├── preview.html                    # Open in any browser — all 10 states at a glance
 ├── src/
-│   ├── index.html                 # 桌宠主窗口
-│   ├── settings.html              # 设置面板
-│   ├── renderer/                  # 渲染进程脚本
-│   │   ├── pet.js                 # 状态机
-│   │   ├── sprite.js              # 史莱姆 DOM/动画控制
-│   │   ├── bubble.js              # 对话气泡
-│   │   ├── drag.js                # 拖拽 + 穿透
-│   │   └── style.css              # 史莱姆 CSS 造型
+│   ├── index.html                  # Pet window
+│   ├── settings.html               # Settings panel
+│   ├── renderer/
+│   │   ├── pet.js                  # FSM + event subscriptions
+│   │   ├── sprite.js               # 16×16 body + face patches, canvas render
+│   │   ├── bubble.js               # speech bubble + typewriter
+│   │   ├── drag.js                 # hit-test + clickthrough toggle
+│   │   └── style.css               # all CSS, animations, edge/peek states
 │   ├── ai/
-│   │   ├── agent.js               # 智能体主循环
-│   │   ├── adapter.js             # 协议分派
-│   │   ├── protocol-messages.js   # Anthropic 格式
-│   │   ├── protocol-chat.js       # OpenAI Chat 格式
-│   │   ├── protocol-responses.js  # OpenAI Responses 格式
-│   │   └── prompt.js              # 系统人设 + 响应解析
+│   │   ├── agent.js                # screenshot → API → broadcast → moveTo
+│   │   ├── adapter.js              # protocol dispatcher + listModels
+│   │   ├── protocol-messages.js    # Anthropic adapter
+│   │   ├── protocol-chat.js        # OpenAI Chat Completions adapter
+│   │   ├── protocol-responses.js   # OpenAI Responses adapter
+│   │   └── prompt.js               # system prompt + JSON parser
 │   ├── main/
-│   │   ├── window.js              # BrowserWindow 管理
-│   │   ├── capture.js             # desktopCapturer 截屏
-│   │   ├── tray.js                # 系统托盘
-│   │   └── ipc.js                 # IPC handlers 注册
-│   ├── config/store.js            # electron-store 持久化
-│   └── settings/settings.js       # 设置面板逻辑
+│   │   ├── window.js               # BrowserWindow creation / position clamping
+│   │   ├── capture.js              # desktopCapturer + compression
+│   │   ├── movement.js             # smooth ease, edge detect, peek clamp
+│   │   ├── tray.js                 # system tray menu
+│   │   └── ipc.js                  # all IPC handlers
+│   ├── config/
+│   │   └── store.js                # electron-store wrapper + defaults
+│   └── settings/
+│       └── settings.js             # settings panel logic + custom dropdown
 └── assets/
-    └── icon.png                   # 托盘/打包图标 (可选)
+    └── icon.png                    # Tray/build icon (optional)
 ```
 
-## 🧪 开发
+---
+
+## 🧪 Development
 
 ```bash
-# 开发模式（开启日志）
-npm run dev
-
-# 打包（需要 electron-builder）
-npm run dist        # 完整打包
-npm run pack        # 仅目录打包，调试用
+npm run dev     # logs enabled
+npm start       # normal
+npm run pack    # electron-builder unpacked dir
+npm run dist    # full installer (NSIS/DMG/AppImage)
 ```
 
-配置文件位置：
+Config file location:
 
-| 平台 | 路径 |
+| OS | Path |
 |---|---|
 | Windows | `%APPDATA%\qq-slime-pet\config.json` |
-| macOS | `~/Library/Application Support/qq-slime-pet/config.json` |
-| Linux | `~/.config/qq-slime-pet/config.json` |
+| macOS   | `~/Library/Application Support/qq-slime-pet/config.json` |
+| Linux   | `~/.config/qq-slime-pet/config.json` |
 
-## 🔒 隐私 & 成本提示
+### Debug console in the pet window
 
-- **截图不会上传到任何第三方**，只发送给你在设置里填写的 API endpoint
-- 截图前桌宠会自动隐藏，避免"自拍循环"
-- macOS 首次使用会请求 **屏幕录制权限**（系统设置 → 隐私与安全性 → 屏幕录制）
-- **token 成本估算**（仅供参考，以模型定价为准）：
-  - 1280×720 截图 ≈ 1000–2000 input tokens
-  - 60 秒间隔、每小时 60 次 ≈ 60k–120k input tokens
-  - Claude Sonnet 4.6 约 $0.2–0.4/小时，gpt-4.1-mini 约 $0.02–0.05/小时
-  - **不在用时请从托盘暂停 AI**
+Since the pet window is a real Electron renderer, you can open devtools (the tray menu doesn't expose this — use `Ctrl+Shift+I` after focusing the pet, or temporarily set `petWindow.webContents.openDevTools({mode:'detach'})` in `window.js`). Helpful globals:
 
-## 🐛 已知限制
+```js
+window.__petDebug.setState('happy')   // force an emotion
+window.__petDebug.say('hi', 5)        // show a bubble for 5s
+window.__petDebug.getState()          // current state
+```
 
-- Windows 下捕获 DRM 视频（Netflix/付费视频）可能是黑屏，AI 会解读为"不知道在看啥"
-- 透明窗口在某些低端集显上全屏游戏时可能闪烁，可在 `main.js` 开启 `app.disableHardwareAcceleration()`
-- 多显示器系统只截主屏（可后续扩展选屏）
-- 没有做本地语音 TTS（后续版本可以加，已在设计中预留）
+---
 
-## 🛠️ 里程碑
+## 🧠 How AI movement works
 
-- [x] M1 — Electron 透明置顶窗口空壳
-- [x] M2 — CSS 果冻史莱姆 + 呼吸待机
-- [x] M3 — 拖拽 + 鼠标穿透切换
-- [x] M4 — 状态机 + 走路 + 10 种表情
-- [x] M5 — 对话气泡 + 打字机效果
-- [x] M6 — 托盘 + 右键菜单 + 设置窗口 + 配置持久化
-- [x] M7 — 三协议 AI 适配层（messages / chat / responses）
-- [x] M8 — 定时截屏 + 完整智能体主循环
-- [ ] M9 — electron-builder 打包 + 开机自启
-- [ ] Extra — Sprite sheet 素材升级 / TTS 语音 / 历史对话记忆 / 多显示器
+Every tick, the LLM sees the screenshot, decides where the pet should go, and returns (for example) `"move": "corner-br"`. Main process's `movement.js`:
 
-## 🤝 贡献
+1. Computes the target pixel coordinates on the primary display.
+2. Starts a 60 fps `setInterval` that ease-in-out interpolates window position over 1.6s.
+3. On each frame broadcasts `pet:edge-changed` if the pet crossed a "within 8px of edge" threshold.
+4. Renderer listens and applies `.edge-left/right/top/bottom` CSS — which rotates `.pet-body` and repositions it against the corresponding wall.
+5. When the pet is dragged off-screen and released, `maybeApplyPeekClamp` pulls the window back so 45% of the body stays visible, and `pet:peek-changed` triggers the wiggle animation.
 
-欢迎 PR！尤其是：
-- 像素素材（sprite sheet 替换方案已预留）
-- 更多协议适配（Gemini 原生 / Bedrock / Azure OpenAI）
-- TTS 语音
-- i18n
+`setContentProtection(true)` is the magic that lets the pet stay visible to the user but invisible in any screenshot including `desktopCapturer`'s — eliminating the hide/show flicker that earlier pet agents required.
+
+---
+
+## 🐛 Known Limitations
+
+- Only the primary display is used for screenshots and edge calculations. Dragging to a secondary monitor works, but AI `move` targets always snap back to the primary.
+- Windows DRM-protected video frames (Netflix, paid streaming) show up as black in screenshots — the AI will interpret them as a black screen.
+- Edge "crawl" is currently a static wall-cling pose. An actual up-down / left-right patrol along the wall is not yet implemented.
+- Speech bubble is hidden while the pet is edge-snapped (positioning would be awkward). Coming in a future version.
+- On macOS, first run triggers a **Screen Recording** permission dialog — grant it in System Settings → Privacy & Security. Without it, screenshots are blank.
+- `setContentProtection` requires Windows 10 build 16299+ / macOS with window-sharing API / Linux with a compositor that honors it.
+
+---
+
+## 🛣️ Roadmap
+
+- [x] Pixel ink-wash visuals
+- [x] Three-protocol AI backend
+- [x] Auto model discovery
+- [x] AI-driven smart movement
+- [x] Edge snap + off-screen peek
+- [x] Background-invisible screenshots
+- [ ] True wall crawling (up/down on vertical edges)
+- [ ] Multi-display awareness
+- [ ] Local TTS for speech
+- [ ] Sprite-sheet swap interface (bring your own art)
+- [ ] i18n for UI
+- [ ] Packaging + auto-update + installer signing
+
+---
+
+## 🤝 Contributing
+
+PRs very welcome — especially for:
+
+- Pixel sprite-sheet alternatives (hook already reserved in `sprite.js`)
+- Additional protocols (Gemini native, AWS Bedrock, Azure OpenAI)
+- Local TTS
+- UI translations
+
+Please open an issue first for anything that changes the AI response contract.
+
+---
 
 ## 📜 License
 
-**[Unlicense](LICENSE)** — 进入公共领域。随便用、随便改、随便卖，不用署名。Do whatever you want.
+[Unlicense](./LICENSE) — public domain. Do whatever you want. No warranty, no liability.
+
+---
+
+<sub>Built with ❤️ as a personal experiment in how far a 16×16 sprite can go with a multimodal LLM attached.</sub>
