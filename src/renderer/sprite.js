@@ -425,6 +425,21 @@
       this.el.style.filter = 'brightness(1.3) contrast(1.1)';
       setTimeout(() => { this.el.style.filter = ''; }, 180);
     }
+
+    /** 清理资源：停止 rAF，清空缓存 */
+    cleanup() {
+      this._paused = true;
+      if (this._rafHandle) {
+        cancelAnimationFrame(this._rafHandle);
+        this._rafHandle = null;
+      }
+      if (this._overlayTimer) {
+        clearInterval(this._overlayTimer);
+        this._overlayTimer = null;
+      }
+      // 清空帧缓存释放内存
+      this._frameCache.clear();
+    }
   }
 
   /** 非变形版（眼睛/嘴在 deformed body 之上，位置已按所在行偏移好了） */

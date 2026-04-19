@@ -155,10 +155,12 @@
   });
 
   // ---------- 接收 AI 事件 ----------
-  window.pet?.onAIEvent?.((data) => {
-    if (!data) return;
-    const { emotion, action, speech, duration } = data;
-    pet.markInteraction();
+  let cleanupAIEvent = null;
+  if (window.pet?.onAIEvent) {
+    cleanupAIEvent = window.pet.onAIEvent((data) => {
+      if (!data) return;
+      const { emotion, action, speech, duration } = data;
+      pet.markInteraction();
 
     // 先切表情，再根据 action 决定是否触发长动作
     if (emotion && REACTION_STATES.includes(emotion)) {
@@ -171,10 +173,11 @@
     else if (action === 'sleep') pet.setState('sleep');
     else if (action === 'jump') pet.setState('happy');
 
-    if (speech) {
-      bubble.show(speech, duration || 4);
-    }
-  });
+      if (speech) {
+        bubble.show(speech, duration || 4);
+      }
+    });
+  }
 
   // ---------- 边缘 / 探头 / 移动事件 ----------
   const EDGE_CLASSES = ['edge-left', 'edge-right', 'edge-top', 'edge-bottom'];
@@ -182,81 +185,109 @@
   let currentEdge = 'none';
   let isMovingByAI = false;
 
-  window.pet?.onEdgeChanged?.((edge) => {
-    EDGE_CLASSES.forEach((c) => petEl.classList.remove(c));
-    if (edge && edge !== 'none') petEl.classList.add('edge-' + edge);
-    currentEdge = edge || 'none';
-    pet.markInteraction();
-  });
-  window.pet?.onPeekChanged?.((side) => {
-    PEEK_CLASSES.forEach((c) => petEl.classList.remove(c));
-    if (side) {
-      petEl.classList.add('peek-' + side);
-      // 探头时表情用 think + 小气泡
-      pet.setState('think', { stickMs: 5000 });
-      bubble.show('偷偷看一下~', 3);
-    }
-    pet.markInteraction();
-  });
-  window.pet?.onMoving?.((data) => {
-    if (!data) return;
-    if (data.moving) {
-      isMovingByAI = true;
-      pet.setState('walk');
-    } else if (isMovingByAI) {
-      isMovingByAI = false;
-      if (currentEdge && currentEdge !== 'none') {
-        pet.setState('idle');
-      } else {
-        pet.setState('happy', { stickMs: 1200 });
+  let cleanupEdge = null;
+  if (window.pet?.onEdgeChanged) {
+    cleanupEdge = window.pet.onEdgeChanged((edge) => {
+      EDGE_CLASSES.forEach((c) => petEl.classList.remove(c));
+      if (edge && edge !== 'none') petEl.classList.add('edge-' + edge);
+      currentEdge = edge || 'none';
+      pet.markInteraction();
+    });
+  }
+
+  let cleanupPeek = null;
+  if (window.pet?.onPeekChanged) {
+    cleanupPeek = window.pet.onPeekChanged((side) => {
+      PEEK_CLASSES.forEach((c) => petEl.classList.remove(c));
+      if (side) {
+        petEl.classList.add('peek-' + side);
+        pet.setState('think', { stickMs: 5000 });
+        bubble.show('偷偷看一下~', 3);
       }
-    }
-  });
-  window.pet?.onCrawling?.((data) => {
-    // 支持新格式 {direction, velocity} 和旧格式 boolean
-    if (!data) {
-      petEl.classList.remove('crawling');
-      try { sprite.setCrawling(null); } catch (_) {}
-      return;
-    }
+      pet.markInteraction();
+    });
+  }
 
-    petEl.classList.add('crawling');
+  let cleanupMoving = null;
+  if (window.pet?.onMoving) {
+    cleanupMoving = window.pet.onMoving((data) => {
+      if (!data) return;
+      if (data.moving) {
+        isMovingByAI = true;
+        pet.setState('walk');
+      } else if (isMovingByAI) {
+        isMovingByAI = false;
+        if (currentEdge && currentEdge !== 'none') {
+          pet.setState('idle');
+        } else {
+          pet.setState('happy', { stickMs: 1200 });
+        }
+      }
+    });
+  }
 
-    // 新格式：{direction, velocity}
-    if (typeof data === 'object' && data.direction) {
-      try { sprite.setCrawling(data.direction, data.velocity || 1); } catch (_) {}
-    }
-    // 旧格式：boolean（向后兼容）
-    else if (typeof data === 'boolean') {
-      try { sprite.setCrawling(data); } catch (_) {}
-    }
-  });
+  let cleanupCrawling = null;
+  if (window.pet?.onCrawling) {
+    cleanupCrawling = window.pet.onCrawling((data) => {
+      if (!data) {
+        petEl.classList.remove('crawling');
+        try { sprite.setCrawling(null); } catch (_) {}
+        return;
+      }
+
+      petEl.classList.add('crawling');
+
+      if (typeof data === 'object' && data.direction) {
+        try { sprite.setCrawling(data.direction, data.velocity || 1); } catch (_) {}
+      } else if (typeof data === 'boolean') {
+        try { sprite.setCrawling(data); } catch (_) {}
+      }
+    });
+  }
 
   // ---------- 退场动画：主进程广播 pet:farewell ----------
   const OUTRO_ANIMATIONS = ['outro-shrink', 'outro-fall', 'outro-poof', 'outro-ink'];
-  window.pet?.onFarewell?.(() => {
-    // 先清掉当前状态类和交互类，让退场动画的 transform 纯粹生效
-    const keepClasses = ['pet'];
-    Array.from(petEl.classList).forEach((c) => {
-      if (!keepClasses.includes(c)) petEl.classList.remove(c);
+  let cleanupFarewell = null;
+  if (window.pet?.onFarewell) {
+    cleanupFarewell = window.pet.onFarewell(() => {
+      const keepClasses = ['pet'];
+      Array.from(petEl.classList).forEach((c) => {
+        if (!keepClasses.includes(c)) petEl.classList.remove(c);
+      });
+      bubble.hide();
+      const name = OUTRO_ANIMATIONS[Math.floor(Math.random() * OUTRO_ANIMATIONS.length)];
+      petEl.classList.add(name);
     });
-    bubble.hide();
-    const name = OUTRO_ANIMATIONS[Math.floor(Math.random() * OUTRO_ANIMATIONS.length)];
-    petEl.classList.add(name);
-  });
+  }
 
   // ---------- 设置 overlay：暂停走路 / 结束时恢复 idle ----------
-  window.pet?.onSettingsToggle?.((on) => {
-    if (on) {
-      pet._stopWalk();
-      bubble.hide();
-      // 桌宠被 CSS display:none 隐藏，停 sprite rAF 省电
-      try { sprite.pauseAnimation(); } catch (_) {}
-    } else {
-      // overlay 关闭后重置到 idle，防止卡在旧状态
-      pet.setState('idle');
-      try { sprite.resumeAnimation(); } catch (_) {}
-    }
+  let cleanupSettings = null;
+  if (window.pet?.onSettingsToggle) {
+    cleanupSettings = window.pet.onSettingsToggle((on) => {
+      if (on) {
+        pet._stopWalk();
+        bubble.hide();
+        try { sprite.pauseAnimation(); } catch (_) {}
+      } else {
+        pet.setState('idle');
+        try { sprite.resumeAnimation(); } catch (_) {}
+      }
+    });
+  }
+
+  // ---------- 清理函数：窗口关闭时调用 ----------
+  window.addEventListener('beforeunload', () => {
+    // 清理所有 IPC 监听器
+    if (cleanupAIEvent) cleanupAIEvent();
+    if (cleanupEdge) cleanupEdge();
+    if (cleanupPeek) cleanupPeek();
+    if (cleanupMoving) cleanupMoving();
+    if (cleanupCrawling) cleanupCrawling();
+    if (cleanupFarewell) cleanupFarewell();
+    if (cleanupSettings) cleanupSettings();
+
+    // 清理 sprite rAF
+    if (sprite && sprite.cleanup) sprite.cleanup();
   });
 
   // ---------- 调试接口 ----------
