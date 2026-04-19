@@ -1,15 +1,72 @@
-// 三协议统一入口：根据 config.protocol 分派
+// 优化版 adapter.js：添加指数退避重试机制
 const { net } = require('electron');
 const messagesProtocol = require('./protocol-messages');
 const chatProtocol = require('./protocol-chat');
 const responsesProtocol = require('./protocol-responses');
 
+// 指数退避重试配置
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 10000,
+  backoffMultiplier: 2,
+  retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+};
+
+/**
+ * 指数退避重试包装器
+ * @param {Function} fn 要重试的异步函数
+ * @param {Object} options 重试配置
+ * @returns {Promise<any>}
+ */
+async function withRetry(fn, options = {}) {
+  const config = { ...RETRY_CONFIG, ...options };
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // 最后一次尝试失败，直接抛出
+      if (attempt === config.maxRetries) {
+        break;
+      }
+
+      // 判断是否应该重试
+      const shouldRetry =
+        error.status && config.retryableStatusCodes.includes(error.status) ||
+        error.code === 'ECONNRESET' ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ENOTFOUND' ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('network');
+
+      if (!shouldRetry) {
+        throw error;
+      }
+
+      // 计算退避延迟
+      const delay = Math.min(
+        config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt),
+        config.maxDelayMs
+      );
+
+      console.warn(`[adapter] 重试 ${attempt + 1}/${config.maxRetries}，${delay}ms 后重试...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 /**
  * @param {Object} params
  * @param {string} params.systemPrompt
  * @param {string} [params.userText]
- * @param {string} [params.imageBase64]    // PNG base64, 不含 data: 前缀
- * @param {Object} params.config           // { protocol, endpoint, apiKey, model, temperature, maxTokens }
+ * @param {string} [params.imageBase64]
+ * @param {Object} params.config
  * @returns {Promise<{ text: string, raw: any }>}
  */
 async function send(params) {
@@ -17,22 +74,24 @@ async function send(params) {
   if (!config || !config.apiKey) {
     throw new Error('未配置 API key，请先在设置里填写');
   }
-  switch ((config.protocol || 'messages').toLowerCase()) {
-    case 'messages':
-      return messagesProtocol.send(params);
-    case 'chat':
-      return chatProtocol.send(params);
-    case 'responses':
-      return responsesProtocol.send(params);
-    default:
-      throw new Error(`未知的 API 协议：${config.protocol}`);
-  }
+
+  // 使用重试机制包装 API 调用
+  return withRetry(async () => {
+    switch ((config.protocol || 'messages').toLowerCase()) {
+      case 'messages':
+        return messagesProtocol.send(params);
+      case 'chat':
+        return chatProtocol.send(params);
+      case 'responses':
+        return responsesProtocol.send(params);
+      default:
+        throw new Error(`未知的 API 协议：${config.protocol}`);
+    }
+  });
 }
 
 /* ============================================================
-   模型列表拉取 —— GET {endpoint}/v1/models
-   - Anthropic: headers x-api-key + anthropic-version
-   - OpenAI (chat/responses): headers Authorization Bearer
+   模型列表拉取
    ============================================================ */
 
 function defaultEndpointFor(protocol) {
@@ -63,7 +122,7 @@ function getJson({ url, headers, timeoutMs = 15000 }) {
     const chunks = [];
     const timer = setTimeout(() => {
       try { req.abort(); } catch (_) {}
-      reject(new Error('请求超时'));
+      reject(Object.assign(new Error('请求超时'), { code: 'ETIMEDOUT' }));
     }, timeoutMs);
     req.on('response', (res) => {
       res.on('data', (c) => chunks.push(c));
@@ -86,49 +145,43 @@ function getJson({ url, headers, timeoutMs = 15000 }) {
   });
 }
 
-/** 从各种形状的响应中提取模型 id 列表 */
 function extractModelIds(raw) {
-  // OpenAI / Anthropic / 大部分代理：{ data: [{id, ...}] }
   if (Array.isArray(raw?.data)) {
     return raw.data.map((m) => m?.id || m?.name).filter(Boolean);
   }
-  // 某些代理：{ models: [...] }
   if (Array.isArray(raw?.models)) {
     return raw.models.map((m) => m?.id || m?.name).filter(Boolean);
   }
-  // Ollama：{ models: [{name,...}] }（已被上面覆盖）/ 直接数组
   if (Array.isArray(raw)) {
     return raw.map((m) => (typeof m === 'string' ? m : m?.id || m?.name)).filter(Boolean);
   }
   return [];
 }
 
-/**
- * 拉模型列表
- * @param {Object} cfg { protocol, endpoint, apiKey }
- * @returns {Promise<string[]>} 模型 id 数组
- */
 async function listModels(cfg) {
   if (!cfg || !cfg.apiKey) {
     throw new Error('需要 API key 才能拉取模型列表');
   }
-  const endpoint = (cfg.endpoint || defaultEndpointFor(cfg.protocol)).replace(/\/+$/, '');
-  const url = `${endpoint}/v1/models`;
-  const headers = headersFor(cfg);
-  const raw = await getJson({ url, headers });
-  const ids = extractModelIds(raw);
-  // 去重 + 排序（字母序，同时把带 vision / 4o / sonnet / opus / gpt-4 关键字的放前面）
-  const unique = Array.from(new Set(ids));
-  const priority = (id) => {
-    const s = String(id).toLowerCase();
-    if (s.includes('vision') || s.includes('4o') || s.includes('sonnet')
-        || s.includes('opus') || s.includes('gpt-4') || s.includes('claude'))
-      return 0;
-    return 1;
-  };
-  unique.sort((a, b) => priority(a) - priority(b) || a.localeCompare(b));
-  return unique;
+
+  // 使用重试机制包装模型列表请求
+  return withRetry(async () => {
+    const endpoint = (cfg.endpoint || defaultEndpointFor(cfg.protocol)).replace(/\/+$/, '');
+    const url = `${endpoint}/v1/models`;
+    const headers = headersFor(cfg);
+    const raw = await getJson({ url, headers });
+    const ids = extractModelIds(raw);
+
+    const unique = Array.from(new Set(ids));
+    const priority = (id) => {
+      const s = String(id).toLowerCase();
+      if (s.includes('vision') || s.includes('4o') || s.includes('sonnet')
+          || s.includes('opus') || s.includes('gpt-4') || s.includes('claude'))
+        return 0;
+      return 1;
+    };
+    unique.sort((a, b) => priority(a) - priority(b) || a.localeCompare(b));
+    return unique;
+  }, { maxRetries: 2 }); // 模型列表请求重试次数较少
 }
 
-module.exports = { send, listModels };
-
+module.exports = { send, listModels, withRetry };
