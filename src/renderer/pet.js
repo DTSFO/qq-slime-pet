@@ -79,6 +79,26 @@
   const pet = new PetFSM();
   pet.setState('idle');
 
+  // ---------- 随机入场动画 ----------
+  const INTRO_ANIMATIONS = ['intro-pop', 'intro-drop', 'intro-spin', 'intro-ink'];
+  (function playRandomIntro() {
+    const name = INTRO_ANIMATIONS[Math.floor(Math.random() * INTRO_ANIMATIONS.length)];
+    petEl.classList.add(name);
+    const cleanup = () => {
+      petEl.classList.remove(name);
+      petEl.removeEventListener('animationend', onEnd);
+    };
+    const onEnd = (e) => {
+      // .pet 身上有多种 animation（breathing 等），只在入场动画结束时清掉
+      if (e.target === petEl && e.animationName && e.animationName.startsWith('intro-')) {
+        cleanup();
+      }
+    };
+    petEl.addEventListener('animationend', onEnd);
+    // 兜底：即便 animationend 没到（被打断），900ms 后强制清掉
+    setTimeout(cleanup, 1000);
+  })();
+
   // 让 walkOffset 随时间慢慢归零
   setInterval(() => {
     if (pet.state !== 'walk' && pet.state !== 'drag') {
@@ -195,6 +215,22 @@
         pet.setState('happy', { stickMs: 1200 });
       }
     }
+  });
+  window.pet?.onCrawling?.((on) => {
+    petEl.classList.toggle('crawling', !!on);
+  });
+
+  // ---------- 退场动画：主进程广播 pet:farewell ----------
+  const OUTRO_ANIMATIONS = ['outro-shrink', 'outro-fall', 'outro-poof', 'outro-ink'];
+  window.pet?.onFarewell?.(() => {
+    // 先清掉当前状态类和交互类，让退场动画的 transform 纯粹生效
+    const keepClasses = ['pet'];
+    Array.from(petEl.classList).forEach((c) => {
+      if (!keepClasses.includes(c)) petEl.classList.remove(c);
+    });
+    bubble.hide();
+    const name = OUTRO_ANIMATIONS[Math.floor(Math.random() * OUTRO_ANIMATIONS.length)];
+    petEl.classList.add(name);
   });
 
   // ---------- 调试接口 ----------

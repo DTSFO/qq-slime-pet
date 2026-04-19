@@ -148,10 +148,33 @@ function closeSettingsWindow() {
   if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
 }
 
+/** 优雅退出：先广播 pet:farewell 让渲染进程播退场动画，900ms 后 app.exit */
+let quitting = false;
+function performGracefulQuit({ delayMs = 900 } = {}) {
+  if (quitting) return;
+  quitting = true;
+  const { app } = require('electron');
+  try {
+    const { stopAgent } = require('../ai/agent');
+    stopAgent();
+  } catch (_) {}
+  const win = getPetWindow();
+  if (win && !win.isDestroyed()) {
+    try { win.webContents.send('pet:farewell'); } catch (_) {}
+  }
+  setTimeout(() => {
+    try {
+      const { app: a } = require('electron');
+      a.exit(0);
+    } catch (_) {}
+  }, delayMs);
+}
+
 module.exports = {
   createPetWindow,
   getPetWindow,
   createSettingsWindow,
   getSettingsWindow,
   closeSettingsWindow,
+  performGracefulQuit,
 };

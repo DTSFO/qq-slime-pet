@@ -27,6 +27,10 @@ function registerIpcHandlers() {
     const pos = screen.getCursorScreenPoint();
     const [wx, wy] = win.getPosition();
     dragStart = { mouseX: pos.x, mouseY: pos.y, winX: wx, winY: wy };
+    try {
+      const { setDragging } = require('./movement');
+      setDragging(true);
+    } catch (_) {}
   });
 
   ipcMain.handle('pet:drag-move', () => {
@@ -54,7 +58,8 @@ function registerIpcHandlers() {
     }
     // 松手后：若被扔到屏幕外，拉回露一半（探头效果）+ 触发 edge/peek 广播
     try {
-      const { maybeApplyPeekClamp } = require('./movement');
+      const { maybeApplyPeekClamp, setDragging } = require('./movement');
+      setDragging(false);
       maybeApplyPeekClamp();
     } catch (_) {}
   });
@@ -96,8 +101,8 @@ function registerIpcHandlers() {
       {
         label: '退出',
         click: () => {
-          stopAgent();
-          app.exit(0);
+          const { performGracefulQuit } = require('./window');
+          performGracefulQuit();
         },
       },
     ]);

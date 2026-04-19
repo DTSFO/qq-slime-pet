@@ -40,6 +40,16 @@ contextBridge.exposeInMainWorld('pet', {
     ipcRenderer.on('pet:moving', listener);
     return () => ipcRenderer.removeListener('pet:moving', listener);
   },
+  onCrawling: (handler) => {
+    const listener = (_ev, on) => handler(on);
+    ipcRenderer.on('pet:crawling', listener);
+    return () => ipcRenderer.removeListener('pet:crawling', listener);
+  },
+  onFarewell: (handler) => {
+    const listener = (_ev, name) => handler(name);
+    ipcRenderer.on('pet:farewell', listener);
+    return () => ipcRenderer.removeListener('pet:farewell', listener);
+  },
 
   // 配置读写（脱敏）
   getConfig: () => ipcRenderer.invoke('config:get-public'),

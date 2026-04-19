@@ -176,13 +176,7 @@ html, body {
 
 /* edge-bottom 默认（与 idle 相同） */
 
-/* 边缘状态下气泡位置会错，先简单隐藏 */
-.pet.edge-top .bubble,
-.pet.edge-left .bubble,
-.pet.edge-right .bubble {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
+/* 边缘状态下气泡需要重新定位（不能占原来的桌宠头顶位置），规则见下面 */
 
 /* ====================================================
    探头 peek-* —— 窗口已经部分超出屏幕，
@@ -317,4 +311,158 @@ html, body {
 @keyframes blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
+}
+
+/* ====================================================
+   贴边状态下的气泡重定位 —— 气泡出现在桌宠的反侧
+   （贴左墙 → 气泡右；贴右墙 → 气泡左；贴顶 → 气泡下方）
+   tail 方向跟着旋转
+   ==================================================== */
+.pet.edge-left .bubble,
+.pet.edge-right .bubble,
+.pet.edge-top .bubble {
+  max-width: 130px;
+  min-width: 50px;
+  font-size: 12px;
+  padding: 7px 10px;
+  line-height: 1.45;
+}
+
+/* 贴左墙 → 气泡出现在桌宠右侧 */
+.pet.edge-left .bubble {
+  left: calc(50% + 36px);
+  right: auto;
+  bottom: 50%;
+  top: auto;
+  transform: translateY(50%);
+}
+.pet.edge-left .bubble:not(.hidden) {
+  transform: translateY(50%) translateX(2px);
+}
+.pet.edge-left .bubble-tail {
+  left: -10px; right: auto;
+  bottom: auto; top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+/* 贴右墙 → 气泡出现在桌宠左侧 */
+.pet.edge-right .bubble {
+  left: auto;
+  right: calc(50% + 36px);
+  bottom: 50%;
+  top: auto;
+  transform: translateY(50%);
+}
+.pet.edge-right .bubble:not(.hidden) {
+  transform: translateY(50%) translateX(-2px);
+}
+.pet.edge-right .bubble-tail {
+  left: auto; right: -10px;
+  bottom: auto; top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+/* 贴顶 → 气泡出现在桌宠下方 */
+.pet.edge-top .bubble {
+  bottom: auto;
+  top: 156px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.pet.edge-top .bubble:not(.hidden) {
+  transform: translateX(-50%) translateY(4px);
+}
+.pet.edge-top .bubble-tail {
+  bottom: auto; top: -10px;
+  left: 50%; right: auto;
+  transform: translateX(-50%) rotate(180deg);
+}
+
+/* ====================================================
+   贴边爬行 —— 桌宠在边缘沿墙慢悠悠移动时，叠加步伐压缩动画
+   注意：keyframe 必须包含完整的 transform 基底（rotate/translate），
+   否则会覆盖 .edge-* 的姿态基底。
+   ==================================================== */
+.pet.crawling.edge-left  .pet-body { animation: crawl-step-left  .55s ease-in-out infinite; }
+.pet.crawling.edge-right .pet-body { animation: crawl-step-right .55s ease-in-out infinite; }
+.pet.crawling.edge-top   .pet-body { animation: crawl-step-top   .55s ease-in-out infinite; }
+.pet.crawling.edge-bottom .pet-body { animation: crawl-step-bottom .55s ease-in-out infinite; }
+
+@keyframes crawl-step-left {
+  0%, 100% { transform: translateY(50%) rotate(90deg) scaleY(1); }
+  50%      { transform: translateY(calc(50% - 2px)) rotate(90deg) scaleY(.94); }
+}
+@keyframes crawl-step-right {
+  0%, 100% { transform: translateY(50%) rotate(-90deg) scaleY(1); }
+  50%      { transform: translateY(calc(50% - 2px)) rotate(-90deg) scaleY(.94); }
+}
+@keyframes crawl-step-top {
+  0%, 100% { transform: translateX(-50%) rotate(180deg) scaleY(1); }
+  50%      { transform: translateX(calc(-50% + 2px)) rotate(180deg) scaleY(.94); }
+}
+@keyframes crawl-step-bottom {
+  0%, 100% { transform: translateX(-50%) scaleY(1); }
+  50%      { transform: translateX(calc(-50% + 2px)) scaleY(.94); }
+}
+
+/* ====================================================
+   出场动画（intro-*）—— 启动时 pet.js 随机挑一个
+   覆盖 .pet 的 breathing，动画结束由 JS 移除 class 恢复呼吸
+   ==================================================== */
+.pet.intro-pop     { animation: intro-pop     .6s cubic-bezier(.34,1.56,.64,1) both; }
+.pet.intro-drop    { animation: intro-drop    .75s cubic-bezier(.25,.85,.4,1.1) both; }
+.pet.intro-spin    { animation: intro-spin    .7s cubic-bezier(.2,.8,.3,1.2) both; }
+.pet.intro-ink     { animation: intro-ink     .85s ease-out both; }
+
+@keyframes intro-pop {
+  0%   { transform: scale(0);     opacity: 0; }
+  60%  { transform: scale(1.18);  opacity: 1; }
+  80%  { transform: scale(.94); }
+  100% { transform: scale(1);     opacity: 1; }
+}
+@keyframes intro-drop {
+  0%   { transform: translateY(-180px) scaleY(.7); opacity: 0; }
+  60%  { transform: translateY(6px)   scaleY(1.1); opacity: 1; }
+  80%  { transform: translateY(-2px)  scaleY(.95); }
+  100% { transform: translateY(0)     scaleY(1);   opacity: 1; }
+}
+@keyframes intro-spin {
+  0%   { transform: rotate(-360deg) scale(0);   opacity: 0; }
+  70%  { transform: rotate(12deg)   scale(1.12); opacity: 1; }
+  100% { transform: rotate(0deg)    scale(1);   opacity: 1; }
+}
+@keyframes intro-ink {
+  0%   { transform: scale(.3); opacity: 0; filter: blur(12px); }
+  35%  {                       opacity: .5; filter: blur(6px); }
+  100% { transform: scale(1);  opacity: 1; filter: blur(0); }
+}
+
+/* ====================================================
+   退场动画（outro-*）—— 主进程 quit 前广播，pet.js 选一个播完再退
+   时长固定 .8s，主进程 setTimeout 900ms 后 app.exit
+   ==================================================== */
+.pet.outro-shrink { animation: outro-shrink .8s cubic-bezier(.5,.1,.8,.5) forwards; }
+.pet.outro-fall   { animation: outro-fall   .8s cubic-bezier(.55,.06,.68,.19) forwards; }
+.pet.outro-poof   { animation: outro-poof   .8s cubic-bezier(.4,.0,.7,.3) forwards; }
+.pet.outro-ink    { animation: outro-ink    .8s ease-in forwards; }
+
+@keyframes outro-shrink {
+  0%   { transform: scale(1);   opacity: 1; }
+  40%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(0);   opacity: 0; }
+}
+@keyframes outro-fall {
+  0%   { transform: translateY(0)    rotate(0);   opacity: 1; }
+  25%  { transform: translateY(-14px) rotate(-4deg); opacity: 1; }
+  100% { transform: translateY(240px) rotate(22deg); opacity: 0; }
+}
+@keyframes outro-poof {
+  0%   { transform: scale(1);   opacity: 1; filter: blur(0); }
+  35%  { transform: scale(1.55); opacity: .85; filter: blur(1px); }
+  100% { transform: scale(.1);  opacity: 0;  filter: blur(10px); }
+}
+@keyframes outro-ink {
+  0%   { transform: scale(1);   opacity: 1; filter: blur(0); }
+  60%  { transform: scale(.92); opacity: .6; filter: blur(4px); }
+  100% { transform: scale(.4);  opacity: 0; filter: blur(16px); }
 }

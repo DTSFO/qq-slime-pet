@@ -74,8 +74,8 @@ function refreshMenu() {
     {
       label: '退出',
       click: () => {
-        stopAgent();
-        app.exit(0);
+        const { performGracefulQuit } = require('./window');
+        performGracefulQuit();
       },
     },
   ]);

@@ -1,4 +1,4 @@
-// 桌宠移动引擎：缓动位移 + 边缘检测 + 部分出屏探头吸附
+// 桌宠移动引擎：缓动位移 + 边缘检测 + 部分出屏探头吸附 + 贴边爬行巡逻
 const { screen } = require('electron');
 
 function getPetWin() {
@@ -7,8 +7,16 @@ function getPetWin() {
 }
 
 let moveTimer = null;
+let moveResolve = null; // 当前 moveTo 的 promise resolve（可在被打断时提前 fire）
 let currentEdge = 'none';
 let currentPeek = null;
+
+// 巡逻（贴边爬行）状态
+let patrolTimer = null;        // 下一步定时器
+let patrolInFlight = false;    // 是否正在爬一步
+let patrolDir = 1;             // ±1：边缘方向（撞墙时反转）
+let aiMoving = false;          // AI moveTo 期间不巡逻
+let userDragging = false;      // 用户拖拽期间不巡逻
 
 function getPrimaryBounds() {
   return screen.getPrimaryDisplay().workArea;
@@ -22,7 +30,22 @@ function getWinRect() {
   return { x, y, w, h };
 }
 
-/** 目标位置计算：target 语义化 → (x, y) 像素坐标 */
+/** 桌宠所在屏的 workArea —— 用于边缘/peek 检测（多屏感知） */
+function getPetDisplayBounds() {
+  const rect = getWinRect();
+  if (!rect) return getPrimaryBounds();
+  try {
+    const d = screen.getDisplayNearestPoint({
+      x: rect.x + Math.round(rect.w / 2),
+      y: rect.y + Math.round(rect.h / 2),
+    });
+    return d?.workArea || getPrimaryBounds();
+  } catch (_) {
+    return getPrimaryBounds();
+  }
+}
+
+/** 目标位置计算：target 语义化 → (x, y) 像素坐标（始终基于主屏） */
 function computeTargetPos(target, rect, bounds) {
   const pad = 0; // 允许紧贴边缘（edge-* 的视觉就是要贴墙）
   const cx = bounds.x + Math.round((bounds.width - rect.w) / 2);
@@ -42,8 +65,58 @@ function computeTargetPos(target, rect, bounds) {
   }
 }
 
-/** 缓动移动到目标位置 */
-function moveTo(target, { duration = 1600 } = {}) {
+/** 把当前 moveTo 动画干净地停下，提前 resolve */
+function clearMoveTimer() {
+  if (moveTimer) {
+    clearInterval(moveTimer);
+    moveTimer = null;
+  }
+  if (moveResolve) {
+    const r = moveResolve;
+    moveResolve = null;
+    r();
+  }
+}
+
+/** 通用窗口缓动：把窗口从当前位置缓动到 (toX, toY)，返回 Promise */
+function animateWindowTo(toX, toY, duration = 1200) {
+  return new Promise((resolve) => {
+    const win = getPetWin();
+    if (!win || win.isDestroyed()) { resolve(); return; }
+    const rect = getWinRect();
+    if (!rect) { resolve(); return; }
+    if (Math.abs(toX - rect.x) < 2 && Math.abs(toY - rect.y) < 2) {
+      refreshEdgeState();
+      resolve();
+      return;
+    }
+
+    clearMoveTimer();
+    moveResolve = resolve;
+
+    const startT = Date.now();
+    const fromX = rect.x, fromY = rect.y;
+    const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+    moveTimer = setInterval(() => {
+      const w = getPetWin();
+      if (!w || w.isDestroyed()) { clearMoveTimer(); return; }
+      const elapsed = Date.now() - startT;
+      const t = Math.min(1, elapsed / duration);
+      const e = ease(t);
+      const nx = Math.round(fromX + (toX - fromX) * e);
+      const ny = Math.round(fromY + (toY - fromY) * e);
+      w.setPosition(nx, ny, false);
+      refreshEdgeState();
+      if (t >= 1) {
+        clearMoveTimer();
+      }
+    }, 16);
+  });
+}
+
+/** AI 走位：缓动移动到语义目标（基于主屏） */
+async function moveTo(target, { duration = 1600 } = {}) {
   if (!target || target === 'stay') return;
   const win = getPetWin();
   if (!win || win.isDestroyed()) return;
@@ -53,40 +126,32 @@ function moveTo(target, { duration = 1600 } = {}) {
   const pos = computeTargetPos(target, rect, bounds);
   if (!pos) return;
   const [toX, toY] = pos.map(Math.round);
-  if (Math.abs(toX - rect.x) < 2 && Math.abs(toY - rect.y) < 2) {
-    refreshEdgeState();
-    return;
-  }
 
-  if (moveTimer) {
-    clearInterval(moveTimer);
-    moveTimer = null;
-  }
-  const startT = Date.now();
-  const fromX = rect.x, fromY = rect.y;
-  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-
-  // 在每一步告诉渲染进程"我正在移动"，渲染可以用它做 walk 动画
+  aiMoving = true;
+  stopPatrol();
   broadcastMoving(true, target);
+  try {
+    await animateWindowTo(toX, toY, duration);
+  } finally {
+    aiMoving = false;
+    broadcastMoving(false, target);
+    // 走位结束后若已贴边，自动恢复巡逻
+    if (currentEdge !== 'none' && !userDragging) startPatrol(currentEdge);
+  }
+}
 
-  moveTimer = setInterval(() => {
-    const w = getPetWin();
-    if (!w || w.isDestroyed()) {
-      clearInterval(moveTimer); moveTimer = null; return;
-    }
-    const elapsed = Date.now() - startT;
-    const t = Math.min(1, elapsed / duration);
-    const e = ease(t);
-    const nx = Math.round(fromX + (toX - fromX) * e);
-    const ny = Math.round(fromY + (toY - fromY) * e);
-    w.setPosition(nx, ny, false);
-    refreshEdgeState();
-    if (t >= 1) {
-      clearInterval(moveTimer);
-      moveTimer = null;
-      broadcastMoving(false, target);
-    }
-  }, 16);
+/** tick 前保险：桌宠不在主屏就爬回主屏右下 */
+async function ensureOnPrimary() {
+  const rect = getWinRect();
+  if (!rect) return;
+  const primary = getPrimaryBounds();
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const onPrimary =
+    cx >= primary.x && cx < primary.x + primary.width &&
+    cy >= primary.y && cy < primary.y + primary.height;
+  if (onPrimary) return;
+  await moveTo('corner-br', { duration: 2400 });
 }
 
 function broadcastMoving(isMoving, target) {
@@ -96,11 +161,18 @@ function broadcastMoving(isMoving, target) {
   }
 }
 
+function broadcastCrawling(on) {
+  const win = getPetWin();
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('pet:crawling', !!on);
+  }
+}
+
 /** 检测当前贴在哪个边（或 'none'） */
 function detectEdge() {
   const rect = getWinRect();
   if (!rect) return 'none';
-  const bounds = getPrimaryBounds();
+  const bounds = getPetDisplayBounds();
   const threshold = 8;
   const distLeft = rect.x - bounds.x;
   const distRight = (bounds.x + bounds.width) - (rect.x + rect.w);
@@ -119,7 +191,7 @@ function detectEdge() {
 function detectPeek() {
   const rect = getWinRect();
   if (!rect) return { side: null };
-  const bounds = getPrimaryBounds();
+  const bounds = getPetDisplayBounds();
   const outLeft   = bounds.x - rect.x;
   const outRight  = (rect.x + rect.w) - (bounds.x + bounds.width);
   const outTop    = bounds.y - rect.y;
@@ -139,8 +211,15 @@ function refreshEdgeState() {
   if (!win || win.isDestroyed()) return;
 
   if (edge !== currentEdge) {
+    const prev = currentEdge;
     currentEdge = edge;
     win.webContents.send('pet:edge-changed', edge);
+    // 巡逻启停：从 none → 某边 → 启动；→ none → 停止；换边 → 重启巡逻
+    if (edge === 'none') {
+      stopPatrol();
+    } else if (!aiMoving && !userDragging) {
+      startPatrol(edge);
+    }
   }
   const peekSide = peek.side || null;
   if (peekSide !== currentPeek) {
@@ -150,13 +229,12 @@ function refreshEdgeState() {
 }
 
 /**
- * 用户拖拽释放后：如果窗口超出屏幕"太多"，拉回到只露出约一半身体的位置，
- * 让桌宠看起来像在屏幕边缘探头
+ * 用户拖拽释放后：如果窗口超出屏幕"太多"，拉回到只露出约一半身体的位置
  */
 function maybeApplyPeekClamp() {
   const rect = getWinRect();
   if (!rect) return;
-  const bounds = getPrimaryBounds();
+  const bounds = getPetDisplayBounds();
   const peekKeep = Math.round(rect.w * 0.45); // 屏幕内保留 45%
 
   const outLeft   = bounds.x - rect.x;
@@ -189,10 +267,88 @@ function maybeApplyPeekClamp() {
   refreshEdgeState();
 }
 
+/** 拖拽状态开关（ipc.js 调用），拖拽期间不巡逻 */
+function setDragging(on) {
+  userDragging = !!on;
+  if (userDragging) {
+    stopPatrol();
+  } else if (currentEdge !== 'none' && !aiMoving) {
+    startPatrol(currentEdge);
+  }
+}
+
+/* -------------------- 贴边爬行巡逻 -------------------- */
+
+function startPatrol(edge) {
+  stopPatrol();
+  if (!edge || edge === 'none') return;
+  patrolDir = Math.random() > 0.5 ? 1 : -1;
+  scheduleNextStep(edge);
+}
+
+function scheduleNextStep(edge) {
+  const delay = 3000 + Math.random() * 2000; // 3-5 秒
+  patrolTimer = setTimeout(() => doPatrolStep(edge), delay);
+}
+
+async function doPatrolStep(edge) {
+  patrolTimer = null;
+  // 多重守护：边缘已丢 / AI 正在移动 / 用户正在拖拽 → 不动
+  if (currentEdge !== edge || aiMoving || userDragging) return;
+  const rect = getWinRect();
+  if (!rect) return;
+  const bounds = getPetDisplayBounds();
+
+  const dist = (60 + Math.random() * 60) * patrolDir; // 60-120px 带方向
+  let toX = rect.x, toY = rect.y;
+  if (edge === 'left' || edge === 'right') {
+    toY = Math.round(rect.y + dist);
+    if (toY < bounds.y) { toY = bounds.y; patrolDir = 1; }
+    if (toY + rect.h > bounds.y + bounds.height) {
+      toY = bounds.y + bounds.height - rect.h;
+      patrolDir = -1;
+    }
+  } else {
+    // top / bottom 边 → 左右爬
+    toX = Math.round(rect.x + dist);
+    if (toX < bounds.x) { toX = bounds.x; patrolDir = 1; }
+    if (toX + rect.w > bounds.x + bounds.width) {
+      toX = bounds.x + bounds.width - rect.w;
+      patrolDir = -1;
+    }
+  }
+
+  patrolInFlight = true;
+  broadcastCrawling(true);
+  try {
+    await animateWindowTo(toX, toY, 1200);
+  } finally {
+    patrolInFlight = false;
+    broadcastCrawling(false);
+  }
+
+  // 偶尔反向，自然点
+  if (Math.random() < 0.25) patrolDir *= -1;
+
+  if (currentEdge === edge && !aiMoving && !userDragging) {
+    scheduleNextStep(edge);
+  }
+}
+
+function stopPatrol() {
+  if (patrolTimer) { clearTimeout(patrolTimer); patrolTimer = null; }
+  if (patrolInFlight) {
+    broadcastCrawling(false);
+    patrolInFlight = false;
+  }
+}
+
 module.exports = {
   moveTo,
   detectEdge,
   detectPeek,
   refreshEdgeState,
   maybeApplyPeekClamp,
+  ensureOnPrimary,
+  setDragging,
 };

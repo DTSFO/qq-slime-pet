@@ -34,6 +34,9 @@ async function runOnce({ userText = null, skipImage = false } = {}) {
     return null;
   }
 
+  // tick 前保险：桌宠若被拖到副屏，先爬回主屏再截图（截图锚定主屏）
+  try { await movement.ensureOnPrimary(); } catch (_) {}
+
   let imageBase64 = null;
   if (!skipImage && cfg.capture?.autoCapture !== false) {
     try {
