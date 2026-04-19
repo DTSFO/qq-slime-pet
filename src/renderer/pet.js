@@ -218,6 +218,8 @@
   });
   window.pet?.onCrawling?.((on) => {
     petEl.classList.toggle('crawling', !!on);
+    // 同步给 sprite：切到 crawl profile（像素级蠕动覆盖当前 state 的变形）
+    try { sprite.setCrawling(!!on); } catch (_) {}
   });
 
   // ---------- 退场动画：主进程广播 pet:farewell ----------
@@ -238,9 +240,12 @@
     if (on) {
       pet._stopWalk();
       bubble.hide();
+      // 桌宠被 CSS display:none 隐藏，停 sprite rAF 省电
+      try { sprite.pauseAnimation(); } catch (_) {}
     } else {
       // overlay 关闭后重置到 idle，防止卡在旧状态
       pet.setState('idle');
+      try { sprite.resumeAnimation(); } catch (_) {}
     }
   });
 

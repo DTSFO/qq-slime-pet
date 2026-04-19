@@ -85,13 +85,17 @@ html, body {
    像素细节（眼睛/嘴）由 canvas 重绘，这里只管整体形变/位移
    ------------------------------------- */
 
-/* idle —— 呼吸由 .pet 的 breathing 动画承担 */
+/* idle —— 呼吸由 .pet 的 breathing 动画承担；像素级 wiggle 见 sprite.js */
 
-.pet.state-walk { animation: breathing 2.4s ease-in-out infinite, walk-bounce 0.55s ease-in-out infinite; }
-.pet.state-shock { animation: shock-shake 0.5s ease-in-out; }
+/* 走路：去掉整体 bounce/rotate，让 sprite.js 的像素 walk profile 主导变形。
+   仅保留 breathing 的整体气息 */
+.pet.state-walk { animation: breathing 2.4s ease-in-out infinite; }
+
+/* 剧烈情绪：大幅一次性整体晃动；像素级还有独立高频颤抖 */
+.pet.state-shock { animation: shock-shake 0.45s ease-in-out; }
 .pet.state-happy { animation: breathing 2.4s ease-in-out infinite, happy-hop 0.55s ease-in-out 2; }
-.pet.state-angry { animation: breathing 2.4s ease-in-out infinite, angry-shake 0.14s linear infinite; }
-.pet.state-drag  { animation: drag-wobble 0.35s ease-in-out infinite; }
+.pet.state-angry { animation: breathing 2.4s ease-in-out infinite; }
+.pet.state-drag  { animation: drag-wobble 0.5s ease-in-out infinite; }
 .pet.state-sleep  .pet-body,
 .pet.state-sleepy .pet-body { transform: translateX(-50%) translateY(3px) scaleY(.9); }
 .pet.state-think  .pet-body { transform: translateX(-50%) rotate(-3deg); }
@@ -121,22 +125,22 @@ html, body {
 
 @keyframes shock-shake {
   0%   { transform: translateX(0) scale(1); }
-  25%  { transform: translateX(-4px) scale(1.06); }
-  50%  { transform: translateX(4px)  scale(1.06); }
-  75%  { transform: translateX(-2px) scale(1.03); }
+  25%  { transform: translateX(-2px) scale(1.04); }
+  50%  { transform: translateX(2px)  scale(1.04); }
+  75%  { transform: translateX(-1px) scale(1.02); }
   100% { transform: translateX(0) scale(1); }
 }
 
 @keyframes angry-shake {
   0%, 100% { transform: translateX(0); }
-  25%      { transform: translateX(-2px) translateY(-1px); }
-  50%      { transform: translateX(2px)  translateY(1px); }
-  75%      { transform: translateX(-1px) translateY(0); }
+  25%      { transform: translateX(-1px); }
+  50%      { transform: translateX(1px); }
+  75%      { transform: translateX(-1px); }
 }
 
 @keyframes drag-wobble {
   0%, 100% { transform: translateY(0) skewX(0deg) scaleY(1); }
-  50%      { transform: translateY(-4px) skewX(8deg) scaleY(.92); }
+  50%      { transform: translateY(-3px) skewX(5deg) scaleY(.95); }
 }
 
 /* ====================================================
@@ -379,31 +383,9 @@ html, body {
 }
 
 /* ====================================================
-   贴边爬行 —— 桌宠在边缘沿墙慢悠悠移动时，叠加步伐压缩动画
-   注意：keyframe 必须包含完整的 transform 基底（rotate/translate），
-   否则会覆盖 .edge-* 的姿态基底。
+   贴边爬行 —— 像素级 crawl profile 在 sprite.js 里承担主要蠕动；
+   CSS 仅保留 rotate 基底（见上方 .edge-* .pet-body），这里不再叠加变形
    ==================================================== */
-.pet.crawling.edge-left  .pet-body { animation: crawl-step-left  .55s ease-in-out infinite; }
-.pet.crawling.edge-right .pet-body { animation: crawl-step-right .55s ease-in-out infinite; }
-.pet.crawling.edge-top   .pet-body { animation: crawl-step-top   .55s ease-in-out infinite; }
-.pet.crawling.edge-bottom .pet-body { animation: crawl-step-bottom .55s ease-in-out infinite; }
-
-@keyframes crawl-step-left {
-  0%, 100% { transform: translateY(50%) rotate(90deg) scaleY(1); }
-  50%      { transform: translateY(calc(50% - 2px)) rotate(90deg) scaleY(.94); }
-}
-@keyframes crawl-step-right {
-  0%, 100% { transform: translateY(50%) rotate(-90deg) scaleY(1); }
-  50%      { transform: translateY(calc(50% - 2px)) rotate(-90deg) scaleY(.94); }
-}
-@keyframes crawl-step-top {
-  0%, 100% { transform: translateX(-50%) rotate(180deg) scaleY(1); }
-  50%      { transform: translateX(calc(-50% + 2px)) rotate(180deg) scaleY(.94); }
-}
-@keyframes crawl-step-bottom {
-  0%, 100% { transform: translateX(-50%) scaleY(1); }
-  50%      { transform: translateX(calc(-50% + 2px)) scaleY(.94); }
-}
 
 /* ====================================================
    出场动画（intro-*）—— 启动时 pet.js 随机挑一个
