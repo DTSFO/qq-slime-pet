@@ -13,22 +13,34 @@
       this._dragging = false;
       this._pressedAt = 0;
       this._pressPos = null;
-      this._clickThrough = true; // 当前是否穿透
+      this._clickThrough = true;
+      this._dragMoveThrottled = false;
 
-      // 主进程通过 forward 仍会把 mousemove 送来，用于检测指针落点
+      // P2 优化：rect 缓存 + mousemove 节流
+      this._cachedRect = null;
+      this._rectCacheTime = 0;
+      this._lastHitTest = false;
+      this._throttleTimer = null;
+
       window.addEventListener('mousemove', (e) => this._onMouseMove(e));
       petEl.addEventListener('mousedown', (e) => this._onMouseDown(e));
       window.addEventListener('mouseup', (e) => this._onMouseUp(e));
       petEl.addEventListener('contextmenu', (e) => this._onContextMenu(e));
 
-      // 启动时先把穿透打开（兜底）
       this._applyClickThrough(true);
     }
 
     _hitTest(clientX, clientY) {
       const body = this.el.querySelector('.pet-body');
       if (!body) return false;
-      const rect = body.getBoundingClientRect();
+
+      const now = performance.now();
+      if (!this._cachedRect || now - this._rectCacheTime > 100) {
+        this._cachedRect = body.getBoundingClientRect();
+        this._rectCacheTime = now;
+      }
+
+      const rect = this._cachedRect;
       return (
         clientX >= rect.left &&
         clientX <= rect.right &&
@@ -46,15 +58,27 @@
     }
 
     _onMouseMove(e) {
-      // overlay 打开时：click-through 由主进程整体关闭，不走 hit-test 切换
       if (document.body.classList.contains('settings-open')) return;
       if (this._dragging) {
-        window.pet?.dragMove?.();
+        if (this._dragMoveThrottled) return;
+        this._dragMoveThrottled = true;
+        requestAnimationFrame(() => {
+          window.pet?.dragMove?.();
+          this._dragMoveThrottled = false;
+        });
         return;
       }
+
+      if (this._throttleTimer) return;
+      this._throttleTimer = setTimeout(() => {
+        this._throttleTimer = null;
+      }, 50);
+
       const hit = this._hitTest(e.clientX, e.clientY);
-      // 指针在身上 → 关闭穿透；指针离开 → 打开穿透
-      this._applyClickThrough(!hit);
+      if (hit !== this._lastHitTest) {
+        this._lastHitTest = hit;
+        this._applyClickThrough(!hit);
+      }
     }
 
     async _onMouseDown(e) {
