@@ -50,6 +50,16 @@ contextBridge.exposeInMainWorld('pet', {
     ipcRenderer.on('pet:farewell', listener);
     return () => ipcRenderer.removeListener('pet:farewell', listener);
   },
+  onSettingsToggle: (handler) => {
+    const showL = () => handler(true);
+    const hideL = () => handler(false);
+    ipcRenderer.on('settings:show', showL);
+    ipcRenderer.on('settings:hide', hideL);
+    return () => {
+      ipcRenderer.removeListener('settings:show', showL);
+      ipcRenderer.removeListener('settings:hide', hideL);
+    };
+  },
 
   // 配置读写（脱敏）
   getConfig: () => ipcRenderer.invoke('config:get-public'),

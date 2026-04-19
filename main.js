@@ -2,7 +2,7 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
-const { createPetWindow, getPetWindow, createSettingsWindow } = require('./src/main/window');
+const { createPetWindow, getPetWindow } = require('./src/main/window');
 const { registerIpcHandlers } = require('./src/main/ipc');
 const { createTray } = require('./src/main/tray');
 const { startAgent, stopAgent } = require('./src/ai/agent');

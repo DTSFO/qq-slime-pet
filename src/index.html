@@ -24,9 +24,173 @@
     </div>
   </div>
 
+  <!-- 设置 overlay：由主进程触发 settings:show 时显示 -->
+  <div id="settings-overlay" class="settings-overlay hidden" aria-hidden="true">
+    <div class="settings-card">
+      <header class="settings-header">
+        <span class="settings-title">● QQ糖桌宠设置</span>
+        <button class="settings-close" id="settings-close-btn" title="关闭（ESC）">×</button>
+      </header>
+
+      <div class="settings-main">
+        <aside class="settings-tabs">
+          <button class="tab-btn active" data-tab="ai">AI 大模型</button>
+          <button class="tab-btn" data-tab="cap">屏幕观察</button>
+          <button class="tab-btn" data-tab="pet">桌宠</button>
+          <button class="tab-btn" data-tab="about">关于</button>
+        </aside>
+
+        <section class="settings-body">
+          <div class="status hidden" id="settings-status"></div>
+
+          <!-- AI tab -->
+          <div class="tab-panel active" data-panel="ai">
+            <div class="field">
+              <label class="checkbox">
+                <input type="checkbox" id="ai-enabled" />
+                启用 AI 智能体
+              </label>
+            </div>
+
+            <div class="field">
+              <label for="ai-protocol">API 协议</label>
+              <select id="ai-protocol">
+                <option value="messages">messages — Anthropic /v1/messages</option>
+                <option value="chat">chat — OpenAI /v1/chat/completions</option>
+                <option value="responses">responses — OpenAI /v1/responses</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="ai-endpoint">API Endpoint</label>
+              <input type="text" id="ai-endpoint" placeholder="https://api.anthropic.com" autocomplete="off" spellcheck="false" />
+              <div class="hint">Anthropic 用 <code>api.anthropic.com</code>，OpenAI 用 <code>api.openai.com</code>，可填兼容代理。</div>
+            </div>
+
+            <div class="field">
+              <label for="ai-key">API Key</label>
+              <input type="password" id="ai-key" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+              <div class="hint">仅存在本机配置文件，不会上传。</div>
+            </div>
+
+            <div class="field">
+              <label for="ai-model">模型</label>
+              <div class="model-picker">
+                <input type="text" id="ai-model" placeholder="例：claude-sonnet-4-6（点 ↻ 拉取 / 输入过滤 / 手动输入均可）" autocomplete="off" spellcheck="false" />
+                <button type="button" class="icon-btn" id="btn-fetch-models" title="根据 Endpoint + API Key 拉取模型列表">
+                  <span class="spin">↻</span>
+                </button>
+                <div class="model-dropdown hidden" id="model-dropdown"></div>
+              </div>
+              <div class="hint" id="models-hint">填好上方 Endpoint 和 API Key 后，点 ↻ 拉取可选模型</div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="ai-temp">Temperature</label>
+                <input type="number" id="ai-temp" min="0" max="2" step="0.1" value="0.8" />
+              </div>
+              <div class="field">
+                <label for="ai-maxtok">Max Tokens</label>
+                <input type="number" id="ai-maxtok" min="64" max="4096" step="64" value="512" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="ai-prompt">人设 System Prompt</label>
+              <textarea id="ai-prompt" spellcheck="false"></textarea>
+              <div class="hint">
+                系统强制模型返回 JSON：<code>{emotion, action, speech, duration, move}</code>。修改人设请保留此约定。
+              </div>
+            </div>
+          </div>
+
+          <!-- 截屏 tab -->
+          <div class="tab-panel" data-panel="cap">
+            <div class="field">
+              <label class="checkbox">
+                <input type="checkbox" id="cap-auto" />
+                自动截屏（每次调 AI 都带当前屏幕截图）
+              </label>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="cap-interval">截屏间隔 (秒)</label>
+                <input type="number" id="cap-interval" min="15" max="3600" step="5" value="60" />
+              </div>
+              <div class="field">
+                <label for="cap-maxw">截图最大宽度</label>
+                <input type="number" id="cap-maxw" min="480" max="2560" step="80" value="1280" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="checkbox">
+                <input type="checkbox" id="cap-excludeself" checked />
+                截图时自动隐藏桌宠（避免自拍循环）
+              </label>
+            </div>
+
+            <div class="hint">
+              ⚠️ 每次截屏 + 多模态调用都会消耗 token。以 1280×720 估算，每次约 1000-2000 prompt tokens。60 秒间隔 ≈ 每小时 60 次。请按账户预算调整。
+            </div>
+          </div>
+
+          <!-- 桌宠 tab -->
+          <div class="tab-panel" data-panel="pet">
+            <div class="field-row">
+              <div class="field">
+                <label for="pet-name">桌宠名字</label>
+                <input type="text" id="pet-name" value="QQ糖" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="pet-size">桌宠大小 (px)</label>
+                <input type="number" id="pet-size" min="120" max="400" step="10" value="220" />
+              </div>
+              <div class="field">
+                <label for="pet-bubble">气泡默认秒数</label>
+                <input type="number" id="pet-bubble" min="1" max="20" step="1" value="4" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="checkbox">
+                <input type="checkbox" id="pet-ontop" checked />
+                始终置顶
+              </label>
+            </div>
+
+            <div class="hint">修改桌宠大小后需要重启应用才能生效。</div>
+          </div>
+
+          <!-- 关于 tab -->
+          <div class="tab-panel" data-panel="about">
+            <div class="about-block">
+              <h4>QQ糖桌宠</h4>
+              <p>水墨像素风多模态 AI 桌宠 · Electron</p>
+              <p class="muted">许可：Unlicense（公共领域）</p>
+              <p class="muted">GitHub：github.com/DTSFO/qq-slime-pet</p>
+            </div>
+            <div class="hint">
+              截图 + AI 调用的内容会上传到你配置的 API 端点。保密/敏感屏幕内容请从托盘菜单暂停 AI。
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="settings-footer">
+        <button class="btn ghost" id="btn-test">测试连接</button>
+        <button class="btn secondary" id="btn-cancel">取消</button>
+        <button class="btn" id="btn-save">保存</button>
+      </footer>
+    </div>
+  </div>
+
   <script src="./renderer/sprite.js"></script>
   <script src="./renderer/bubble.js"></script>
   <script src="./renderer/drag.js"></script>
+  <script src="./renderer/settings-overlay.js"></script>
   <script src="./renderer/pet.js"></script>
 </body>
 </html>

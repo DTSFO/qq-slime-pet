@@ -2,7 +2,7 @@
 const { Tray, Menu, nativeImage, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { createSettingsWindow } = require('./window');
+const { openSettingsOverlay } = require('./window');
 const { getConfig, setConfig } = require('../config/store');
 const { startAgent, stopAgent, isAgentRunning } = require('../ai/agent');
 
@@ -31,7 +31,7 @@ function createTray() {
   tray = new Tray(loadTrayIcon());
   tray.setToolTip('QQ糖桌宠');
   refreshMenu();
-  tray.on('double-click', () => createSettingsWindow());
+  tray.on('double-click', () => openSettingsOverlay());
   return tray;
 }
 
@@ -57,7 +57,7 @@ function refreshMenu() {
     },
     {
       label: '打开设置',
-      click: () => createSettingsWindow(),
+      click: () => openSettingsOverlay(),
     },
     {
       label: '置顶',

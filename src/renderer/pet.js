@@ -233,6 +233,17 @@
     petEl.classList.add(name);
   });
 
+  // ---------- 设置 overlay：暂停走路 / 结束时恢复 idle ----------
+  window.pet?.onSettingsToggle?.((on) => {
+    if (on) {
+      pet._stopWalk();
+      bubble.hide();
+    } else {
+      // overlay 关闭后重置到 idle，防止卡在旧状态
+      pet.setState('idle');
+    }
+  });
+
   // ---------- 调试接口 ----------
   window.__petDebug = {
     setState: (s) => pet.setState(s),

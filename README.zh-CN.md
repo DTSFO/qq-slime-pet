@@ -308,14 +308,14 @@ qq-slime-pet/
 ├── LICENSE                         # Unlicense（公共领域）
 ├── preview.html                    # 浏览器打开即可看全 10 种状态
 ├── src/
-│   ├── index.html                  # 桌宠窗口
-│   ├── settings.html               # 设置面板
+│   ├── index.html                  # 桌宠窗口（同时承载设置 overlay）
 │   ├── renderer/
 │   │   ├── pet.js                  # 状态机 + 事件订阅
 │   │   ├── sprite.js               # 16×16 身体 + 脸补丁，canvas 渲染
 │   │   ├── bubble.js               # 气泡 + 打字机
 │   │   ├── drag.js                 # 命中检测 + 穿透切换
-│   │   └── style.css               # 全部 CSS、动画、边缘/探头状态
+│   │   ├── settings-overlay.js     # 设置面板 overlay 控制器（同窗口内嵌）
+│   │   └── style.css               # 全部 CSS、动画、边缘/探头、overlay
 │   ├── ai/
 │   │   ├── agent.js                # 截图 → API → 广播 → 走位
 │   │   ├── adapter.js              # 协议派发 + listModels
@@ -324,15 +324,13 @@ qq-slime-pet/
 │   │   ├── protocol-responses.js   # OpenAI Responses 适配器
 │   │   └── prompt.js               # 系统提示词 + JSON 解析器
 │   ├── main/
-│   │   ├── window.js               # BrowserWindow 创建 / 位置夹持
+│   │   ├── window.js               # BrowserWindow 创建 + 设置 overlay 开/关
 │   │   ├── capture.js              # desktopCapturer + 压缩
-│   │   ├── movement.js             # 平滑缓动、边缘检测、探头夹持
+│   │   ├── movement.js             # 平滑缓动、边缘检测、探头夹持、巡逻
 │   │   ├── tray.js                 # 系统托盘菜单
 │   │   └── ipc.js                  # 所有 IPC handler
-│   ├── config/
-│   │   └── store.js                # electron-store 封装 + 默认值
-│   └── settings/
-│       └── settings.js             # 设置面板逻辑 + 自制下拉
+│   └── config/
+│       └── store.js                # electron-store 封装 + 默认值
 └── assets/
     └── icon.png                    # 托盘 / 打包图标（可选）
 ```

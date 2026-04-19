@@ -2,8 +2,10 @@
 const { ipcMain, Menu, screen, app } = require('electron');
 const {
   getPetWindow,
-  createSettingsWindow,
-  closeSettingsWindow,
+  openSettingsOverlay,
+  closeSettingsOverlay,
+  isSettingsOpen,
+  performGracefulQuit,
 } = require('./window');
 const { getConfig, setConfig, getPublicConfig } = require('../config/store');
 const { send: aiSend, listModels } = require('../ai/adapter');
@@ -21,6 +23,7 @@ function registerIpcHandlers() {
   let dragStart = null; // { mouseX, mouseY, winX, winY }
 
   ipcMain.handle('pet:drag-start', () => {
+    if (isSettingsOpen()) return;
     const win = getPetWindow();
     if (!win) return;
     dragging = true;
@@ -34,6 +37,7 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('pet:drag-move', () => {
+    if (isSettingsOpen()) return;
     if (!dragging || !dragStart) return;
     const win = getPetWindow();
     if (!win) return;
@@ -49,6 +53,7 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('pet:drag-end', () => {
+    if (isSettingsOpen()) { dragging = false; dragStart = null; return; }
     dragging = false;
     dragStart = null;
     const win = getPetWindow();
@@ -95,7 +100,7 @@ function registerIpcHandlers() {
       { type: 'separator' },
       {
         label: '打开设置',
-        click: () => createSettingsWindow(),
+        click: () => openSettingsOverlay(),
       },
       { type: 'separator' },
       {
@@ -154,9 +159,9 @@ function registerIpcHandlers() {
 
   // ---- 设置窗口 ----
   ipcMain.handle('settings:open', () => {
-    createSettingsWindow();
+    openSettingsOverlay();
   });
-  ipcMain.handle('settings:close', () => closeSettingsWindow());
+  ipcMain.handle('settings:close', () => closeSettingsOverlay());
   ipcMain.handle('settings:save', (_e, cfg) => {
     setConfig(cfg || {});
     // 配置变更后重启 agent

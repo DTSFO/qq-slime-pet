@@ -1,10 +1,9 @@
-// 主进程窗口管理：创建桌宠透明置顶窗口 + 独立设置窗口
+// 主进程窗口管理：桌宠唯一窗口（设置以 overlay 形式叠在同一窗口内）
 const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 const { getConfig, setConfig } = require('../config/store');
 
 let petWindow = null;
-let settingsWindow = null;
 
 function clampToDisplay(x, y, w, h) {
   const displays = screen.getAllDisplays();
@@ -81,6 +80,8 @@ function createPetWindow() {
 
   petWindow.on('moved', () => {
     if (!petWindow) return;
+    // overlay 打开时会 setBounds 到居中大尺寸，不应写入 config
+    if (settingsOpen) return;
     const [x, y] = petWindow.getPosition();
     setConfig({ pet: { position: { x, y } } });
   });
@@ -96,64 +97,102 @@ function getPetWindow() {
   return petWindow && !petWindow.isDestroyed() ? petWindow : null;
 }
 
-function createSettingsWindow() {
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.show();
-    settingsWindow.focus();
-    return settingsWindow;
+/* ==========================================================
+   设置 Overlay —— 主窗口内嵌的设置面板，切一个 class 即可显示，
+   消除了独立 BrowserWindow 的冷启动和双窗口 DWM 合成开销
+   ========================================================== */
+
+let settingsOpen = false;
+let savedBounds = null;              // overlay 前的窗口 bounds
+let savedAlwaysOnTop = true;         // overlay 前的 always-on-top 级别
+let savedContentProtection = true;   // overlay 前的 content protection
+let savedAgentRunning = false;       // overlay 前 AI 是否在跑
+
+function openSettingsOverlay() {
+  const win = getPetWindow();
+  if (!win || win.isDestroyed() || settingsOpen) return;
+  settingsOpen = true;
+
+  // 记录 overlay 前状态
+  const [x, y] = win.getPosition();
+  const [w, h] = win.getSize();
+  savedBounds = { x, y, width: w, height: h };
+  const cfg = getConfig();
+  savedAlwaysOnTop = cfg.pet?.alwaysOnTop !== false;
+  savedContentProtection = cfg.capture?.excludeSelf !== false;
+
+  // 暂停 AI agent —— 避免 overlay 打开时截到自己 + 省 GPU
+  try {
+    const { isAgentRunning, stopAgent } = require('../ai/agent');
+    savedAgentRunning = isAgentRunning();
+    if (savedAgentRunning) stopAgent();
+  } catch (_) { savedAgentRunning = false; }
+
+  // 关掉 content protection，让用户和录屏看到设置面板
+  try { win.setContentProtection(false); } catch (_) {}
+
+  // 关掉 click-through，overlay 要接收点击
+  try { win.setIgnoreMouseEvents(false); } catch (_) {}
+
+  // 居中到桌宠当前所在屏
+  try {
+    const d = screen.getDisplayNearestPoint({ x: x + w / 2, y: y + h / 2 });
+    const area = d.workArea;
+    const newW = 640, newH = 720;
+    const newX = Math.round(area.x + (area.width - newW) / 2);
+    const newY = Math.round(area.y + (area.height - newH) / 2);
+    win.setBounds({ x: newX, y: newY, width: newW, height: newH }, false);
+  } catch (_) {}
+
+  // 降到 floating 级（screen-saver 会挡系统弹窗）
+  try { win.setAlwaysOnTop(true, 'floating'); } catch (_) {}
+
+  // 广播给渲染进程：overlay 显示
+  try { win.webContents.send('settings:show'); } catch (_) {}
+
+  // 把焦点给主窗口，让输入框可聚焦
+  try { win.focus(); } catch (_) {}
+}
+
+function closeSettingsOverlay() {
+  const win = getPetWindow();
+  if (!win || win.isDestroyed() || !settingsOpen) return;
+  settingsOpen = false;
+
+  // 先通知渲染进程，这样 overlay 能在窗口 resize 前淡出
+  try { win.webContents.send('settings:hide'); } catch (_) {}
+
+  // 恢复窗口几何
+  if (savedBounds) {
+    try { win.setBounds(savedBounds, false); } catch (_) {}
+    savedBounds = null;
   }
 
-  settingsWindow = new BrowserWindow({
-    width: 560,
-    height: 720,
-    title: 'QQ糖桌宠 - 设置',
-    resizable: true,
-    minimizable: true,
-    maximizable: false,
-    autoHideMenuBar: true,
-    backgroundColor: '#1e1f26',
-    // 先隐藏，等内容准备好再显示，避免白屏闪烁 / 帧率掉
-    show: false,
-    paintWhenInitiallyHidden: true,
-    webPreferences: {
-      preload: path.join(__dirname, '..', '..', 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-      backgroundThrottling: false, // 设置窗口不后台节流
-      // 开启 disk 缓存，避免每次重加载
-      v8CacheOptions: 'code',
-    },
-  });
+  // 恢复窗口属性
+  try { win.setContentProtection(savedContentProtection); } catch (_) {}
+  try { win.setIgnoreMouseEvents(true, { forward: true }); } catch (_) {}
+  try {
+    if (savedAlwaysOnTop) win.setAlwaysOnTop(true, 'screen-saver');
+    else win.setAlwaysOnTop(false);
+  } catch (_) {}
 
-  settingsWindow.loadFile(path.join(__dirname, '..', 'settings.html'));
-
-  settingsWindow.once('ready-to-show', () => {
-    settingsWindow.show();
-    settingsWindow.focus();
-  });
-
-  settingsWindow.on('closed', () => {
-    settingsWindow = null;
-  });
-
-  return settingsWindow;
+  // 恢复 AI agent（若 settings:save 已经 start 过，这里不会重复，因 startAgent 内部有 running 守护）
+  if (savedAgentRunning) {
+    try {
+      const { isAgentRunning, startAgent } = require('../ai/agent');
+      if (!isAgentRunning()) startAgent();
+    } catch (_) {}
+  }
+  savedAgentRunning = false;
 }
 
-function getSettingsWindow() {
-  return settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : null;
-}
-
-function closeSettingsWindow() {
-  if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
-}
+function isSettingsOpen() { return settingsOpen; }
 
 /** 优雅退出：先广播 pet:farewell 让渲染进程播退场动画，900ms 后 app.exit */
 let quitting = false;
 function performGracefulQuit({ delayMs = 900 } = {}) {
   if (quitting) return;
   quitting = true;
-  const { app } = require('electron');
   try {
     const { stopAgent } = require('../ai/agent');
     stopAgent();
@@ -164,8 +203,8 @@ function performGracefulQuit({ delayMs = 900 } = {}) {
   }
   setTimeout(() => {
     try {
-      const { app: a } = require('electron');
-      a.exit(0);
+      const { app } = require('electron');
+      app.exit(0);
     } catch (_) {}
   }, delayMs);
 }
@@ -173,8 +212,8 @@ function performGracefulQuit({ delayMs = 900 } = {}) {
 module.exports = {
   createPetWindow,
   getPetWindow,
-  createSettingsWindow,
-  getSettingsWindow,
-  closeSettingsWindow,
+  openSettingsOverlay,
+  closeSettingsOverlay,
+  isSettingsOpen,
   performGracefulQuit,
 };

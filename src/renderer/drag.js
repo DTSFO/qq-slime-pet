@@ -46,6 +46,8 @@
     }
 
     _onMouseMove(e) {
+      // overlay 打开时：click-through 由主进程整体关闭，不走 hit-test 切换
+      if (document.body.classList.contains('settings-open')) return;
       if (this._dragging) {
         window.pet?.dragMove?.();
         return;

@@ -308,14 +308,14 @@ qq-slime-pet/
 ├── LICENSE                         # Unlicense (public domain)
 ├── preview.html                    # Open in any browser — all 10 states at a glance
 ├── src/
-│   ├── index.html                  # Pet window
-│   ├── settings.html               # Settings panel
+│   ├── index.html                  # Pet window (also hosts settings overlay)
 │   ├── renderer/
 │   │   ├── pet.js                  # FSM + event subscriptions
 │   │   ├── sprite.js               # 16×16 body + face patches, canvas render
 │   │   ├── bubble.js               # speech bubble + typewriter
 │   │   ├── drag.js                 # hit-test + clickthrough toggle
-│   │   └── style.css               # all CSS, animations, edge/peek states
+│   │   ├── settings-overlay.js     # in-window settings overlay controller
+│   │   └── style.css               # all CSS, animations, edge/peek states, overlay
 │   ├── ai/
 │   │   ├── agent.js                # screenshot → API → broadcast → moveTo
 │   │   ├── adapter.js              # protocol dispatcher + listModels
@@ -324,15 +324,13 @@ qq-slime-pet/
 │   │   ├── protocol-responses.js   # OpenAI Responses adapter
 │   │   └── prompt.js               # system prompt + JSON parser
 │   ├── main/
-│   │   ├── window.js               # BrowserWindow creation / position clamping
+│   │   ├── window.js               # BrowserWindow creation + settings overlay open/close
 │   │   ├── capture.js              # desktopCapturer + compression
-│   │   ├── movement.js             # smooth ease, edge detect, peek clamp
+│   │   ├── movement.js             # smooth ease, edge detect, peek clamp, patrol
 │   │   ├── tray.js                 # system tray menu
 │   │   └── ipc.js                  # all IPC handlers
-│   ├── config/
-│   │   └── store.js                # electron-store wrapper + defaults
-│   └── settings/
-│       └── settings.js             # settings panel logic + custom dropdown
+│   └── config/
+│       └── store.js                # electron-store wrapper + defaults
 └── assets/
     └── icon.png                    # Tray/build icon (optional)
 ```
