@@ -128,6 +128,9 @@ function openSettingsOverlay() {
     if (savedAgentRunning) stopAgent();
   } catch (_) { savedAgentRunning = false; }
 
+  // 挂起所有窗口移动动画（patrol / moveTo），避免和 setBounds resize 冲突
+  try { require('./movement').suspendMotion(); } catch (_) {}
+
   // 关掉 content protection，让用户和录屏看到设置面板
   try { win.setContentProtection(false); } catch (_) {}
 
@@ -184,6 +187,9 @@ function closeSettingsOverlay() {
     } catch (_) {}
   }
   savedAgentRunning = false;
+
+  // 恢复窗口移动能力
+  try { require('./movement').resumeMotion(); } catch (_) {}
 }
 
 function isSettingsOpen() { return settingsOpen; }

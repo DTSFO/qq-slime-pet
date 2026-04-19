@@ -10,6 +10,7 @@ let moveTimer = null;
 let moveResolve = null; // 当前 moveTo 的 promise resolve（可在被打断时提前 fire）
 let currentEdge = 'none';
 let currentPeek = null;
+let suspended = false; // 外部（例如设置 overlay）打开时挂起所有窗口动画
 
 // 巡逻（贴边爬行）状态
 let patrolTimer = null;        // 下一步定时器
@@ -83,6 +84,14 @@ function animateWindowTo(toX, toY, duration = 1200) {
   return new Promise((resolve) => {
     const win = getPetWin();
     if (!win || win.isDestroyed()) { resolve(); return; }
+    // 参数保护：调用方可能传进 NaN/Infinity/小数导致 Electron setPosition 抛
+    // "conversion failure from Number to Int32"
+    if (!Number.isFinite(toX) || !Number.isFinite(toY) || !Number.isFinite(duration) || duration <= 0) {
+      resolve();
+      return;
+    }
+    toX = Math.round(toX);
+    toY = Math.round(toY);
     const rect = getWinRect();
     if (!rect) { resolve(); return; }
     if (Math.abs(toX - rect.x) < 2 && Math.abs(toY - rect.y) < 2) {
@@ -101,12 +110,18 @@ function animateWindowTo(toX, toY, duration = 1200) {
     moveTimer = setInterval(() => {
       const w = getPetWin();
       if (!w || w.isDestroyed()) { clearMoveTimer(); return; }
+      // 若外部（例如设置 overlay 打开）已改变窗口几何，停掉动画避免拽错位置
+      if (suspended) { clearMoveTimer(); return; }
       const elapsed = Date.now() - startT;
       const t = Math.min(1, elapsed / duration);
       const e = ease(t);
       const nx = Math.round(fromX + (toX - fromX) * e);
       const ny = Math.round(fromY + (toY - fromY) * e);
-      w.setPosition(nx, ny, false);
+      if (!Number.isFinite(nx) || !Number.isFinite(ny)) {
+        clearMoveTimer();
+        return;
+      }
+      try { w.setPosition(nx, ny, false); } catch (_) { clearMoveTimer(); return; }
       refreshEdgeState();
       if (t >= 1) {
         clearMoveTimer();
@@ -117,6 +132,7 @@ function animateWindowTo(toX, toY, duration = 1200) {
 
 /** AI 走位：缓动移动到语义目标（基于主屏） */
 async function moveTo(target, { duration = 1600 } = {}) {
+  if (suspended) return;
   if (!target || target === 'stay') return;
   const win = getPetWin();
   if (!win || win.isDestroyed()) return;
@@ -281,6 +297,7 @@ function setDragging(on) {
 
 function startPatrol(edge) {
   stopPatrol();
+  if (suspended) return;
   if (!edge || edge === 'none') return;
   patrolDir = Math.random() > 0.5 ? 1 : -1;
   scheduleNextStep(edge);
@@ -343,6 +360,20 @@ function stopPatrol() {
   }
 }
 
+/** 挂起所有窗口移动（设置 overlay 打开时调用） */
+function suspendMotion() {
+  suspended = true;
+  stopPatrol();
+  clearMoveTimer();
+}
+
+/** 恢复移动能力（overlay 关闭时调用） */
+function resumeMotion() {
+  suspended = false;
+  // 不主动重启 patrol：refreshEdgeState 会根据当前位置决定是否贴边
+  refreshEdgeState();
+}
+
 module.exports = {
   moveTo,
   detectEdge,
@@ -351,4 +382,6 @@ module.exports = {
   maybeApplyPeekClamp,
   ensureOnPrimary,
   setDragging,
+  suspendMotion,
+  resumeMotion,
 };
